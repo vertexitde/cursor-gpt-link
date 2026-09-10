@@ -14,9 +14,11 @@ This release targets one Windows build of Cursor. It is not a general patch for 
 | Node.js used for testing | 26.7.0 |
 | Codex CLI used for testing | 0.153.4 |
 | Text generation through the bridge | Verified with GPT-6 Astra |
-| Tool call and tool result round trip | Verified through the bridge |
+| Tool calls | Confirmed working in manual local Cursor testing; bridge round trip also verified |
+| File edits | Confirmed working in manual local Cursor testing |
 | Reasoning selection | Forwarding verified in both local runtimes |
-| IDE and Agents Window | Both bundles patched and syntax checked; full interactive agent sessions not verified |
+| IDE and Agents Window | Both bundles patched and syntax checked; manual results do not specify coverage of each window |
+| Remote SSH sessions | Not working |
 | Fast mode | Selector and request forwarding verified; actual priority processing not confirmed |
 
 The installer checks the Cursor version, commit and SHA-256 hashes of five original JavaScript bundles. It stops before patching an unknown or already modified build. See [testing notes](docs/testing.md) for the scope of verification.
@@ -109,8 +111,9 @@ Prompts, attachments and tool data in the forwarded request are sent to OpenAI. 
 
 ## Limitations
 
-* Only the listed Windows x64 build is supported. macOS, Linux, remote environments and cloud agents are untested.
-* Full agent workflows in the IDE and Agents Window still need interactive testing. A successful bridge tool round trip is not a complete Cursor agent test.
+* Remote SSH sessions do not work with the current patch.
+* Only the listed Windows x64 build is supported. macOS, Linux, other remote environments and cloud agents are untested.
+* Tool calls and file edits work in manual local Cursor testing. Separate coverage of the IDE and Agents Window, including approvals and cancellation, has not yet been recorded.
 * Authentication formats, model metadata and the internal endpoint can change independently of Cursor.
 * The bridge uses Codex's local model cache. After switching accounts, open Codex to refresh its cache and reload the Cursor window. A stale cache may temporarily show models the new account cannot use.
 * Initial model entries are embedded when installing. Refreshing the picker normally replaces them with the bridge catalog; an unavailable bridge can leave stale entries visible.

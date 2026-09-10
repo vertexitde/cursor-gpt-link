@@ -33,6 +33,14 @@ These checks exercised the same bridge protocol and runtime hooks before packagi
 
 The streaming tool test collected `response.output_item.done` events. In these checks, `response.completed.output` was empty, so checking only that final output array would miss the streamed result.
 
+## Manual Cursor testing
+
+On September 10, 2026, the project owner reported successful tool calls and file edits in local Cursor usage. This confirms that those operations work in the tested setup, beyond the earlier standalone bridge checks.
+
+The report did not identify which window was used or establish separate coverage of the IDE and Agents Window. Approvals and cancellation were not reported separately.
+
+Remote SSH sessions were tested and reported as not working. They are a known limitation of the current patch, rather than an untested configuration. The cause has not yet been diagnosed.
+
 ## Fast processing
 
 Priority requests were tested with Astra, Sol, Terra, Luna and GPT-5.5. The service reported `default`, including for a direct request outside the bridge. Sending the literal API field `service_tier: "fast"` was rejected. The patch sends `priority`.
@@ -41,8 +49,7 @@ The UI control and request field work, but faster processing and its usage multi
 
 ## Still to verify
 
-* A complete agent task in a freshly patched IDE.
-* A complete agent task in the Agents Window, including approvals and cancellation.
+* Separate IDE and Agents Window coverage, including approvals and cancellation, beyond the confirmed local tool calls and file edits.
 * The public installer and restore flow against a fresh real application installation with Cursor closed.
 * Interactive sign-in and automatic renewal in a fresh public installation.
 * Actual priority processing when requested.
