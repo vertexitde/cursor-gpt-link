@@ -1,6 +1,6 @@
 {
   "name": "cursor-gpt-link",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Experimental ChatGPT subscription bridge for Cursor's local agent runtime",

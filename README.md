@@ -18,7 +18,7 @@ This release targets one Windows build of Cursor. It is not a general patch for 
 | File edits | Confirmed working in manual local Cursor testing |
 | Reasoning selection | Forwarding verified in both local runtimes |
 | IDE and Agents Window | Both bundles patched and syntax checked; manual results do not specify coverage of each window |
-| Remote SSH sessions | Not working |
+| Remote SSH sessions | Responses and remote file edits confirmed working after the 0.1.1 routing fix |
 | Fast mode | Selector and request forwarding verified; actual priority processing not confirmed |
 
 The installer checks the Cursor version, commit and SHA-256 hashes of five original JavaScript bundles. It stops before patching an unknown or already modified build. See [testing notes](docs/testing.md) for the scope of verification.
@@ -79,6 +79,18 @@ node patcher.mjs install --cursor-root "D:\Apps\Cursor\resources\app" --codex-pa
 
 Configuration, a copy of the bridge runtime, model catalogs and original-file backups are stored in `%LOCALAPPDATA%\cursor-gpt-link`. Set `CURSOR_GPT_LINK_HOME` before running the patcher to choose a different state directory. Use the same value for subsequent status and restore commands. The runtime is copied during installation, so moving the repository afterwards does not break autostart. The Node.js executable must stay at its installation path.
 
+## Remote SSH
+
+Version 0.1.1 fixes the Remote SSH routing. Model requests run in Cursor's dedicated local runtime and reach the bridge on your PC. Tool calls use Cursor's existing workspace execution path, so file edits and commands still run on the SSH host. The existing approval and cancellation paths are retained.
+
+The remote host does not need Codex CLI, a ChatGPT sign-in, copied account credentials or a forwarded bridge port. Use your existing local sign-in and reload the SSH window after applying the patch.
+
+The earlier patch ran model requests in the workspace extension host. In an SSH session that process runs on the remote machine, where `127.0.0.1` refers to that machine rather than your PC. The dedicated runtime existed in Cursor but was disabled by default. This patch makes it available and selects it for ChatGPT models in remote workspaces. Other models retain their existing runtime selection.
+
+Responses and remote file edits have been confirmed in a manual SSH test after the fix. Both workbench routing methods are checked against the supported build. Separate manual Agents Window coverage is still pending.
+
+To upgrade an existing public installation, close Cursor, run `node patcher.mjs restore` using the same state directory, update this repository with `git pull`, then run `node patcher.mjs install`. For a private prototype, use its original restore command first.
+
 ## Check or remove the patch
 
 ```powershell
@@ -111,8 +123,8 @@ Prompts, attachments and tool data in the forwarded request are sent to OpenAI. 
 
 ## Limitations
 
-* Remote SSH sessions do not work with the current patch.
-* Only the listed Windows x64 build is supported. macOS, Linux, other remote environments and cloud agents are untested.
+* Remote SSH responses and file edits are confirmed in the tested setup. Other remote configurations and separate Agents Window SSH coverage still need testing.
+* Only the listed Windows x64 client build is supported. macOS and Linux clients, other remote environments and cloud agents are untested.
 * Tool calls and file edits work in manual local Cursor testing. Separate coverage of the IDE and Agents Window, including approvals and cancellation, has not yet been recorded.
 * Authentication formats, model metadata and the internal endpoint can change independently of Cursor.
 * The bridge uses Codex's local model cache. After switching accounts, open Codex to refresh its cache and reload the Cursor window. A stale cache may temporarily show models the new account cannot use.

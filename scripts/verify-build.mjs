@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {buildPatches} from '../src/patches.mjs';
+import {verifyWorkbenchRouting} from './workbench-routing-check.mjs';
 
 const root = process.argv[2];
 if (!root) throw new Error('Usage: node scripts/verify-build.mjs PATH_TO_ORIGINAL_RESOURCES_APP');
@@ -25,6 +26,10 @@ try {
     fs.writeFileSync(candidate, file.content);
     execFileSync(process.execPath, ['--check', candidate], {stdio:'pipe', windowsHide:true});
     console.log('Syntax and unique anchors: ' + path.relative(root, file.path));
+    if (file.path.includes('workbench.')) {
+      await verifyWorkbenchRouting(file.content);
+      console.log('Native workbench SSH routing and workspace resources: passed');
+    }
     if (!file.path.includes('cursor-agent-exec') && !file.path.includes('cursor-local-agent-runtime')) continue;
     const start = file.content.indexOf('function(e,t,n,r,o,s=!1,i){const a=function(e){');
     assert.ok(start >= 0, 'Normalizer function found');
