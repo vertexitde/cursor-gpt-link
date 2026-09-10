@@ -12,7 +12,7 @@ process.env.CODEX_HOME = path.join(state, 'codex');
 fs.mkdirSync(process.env.CODEX_HOME);
 fs.writeFileSync(path.join(state, 'config.json'), JSON.stringify({key:'synthetic-test-key'}));
 fs.writeFileSync(path.join(process.env.CODEX_HOME, 'auth.json'), JSON.stringify({tokens:{access_token:'synthetic-token', account_id:'synthetic-account'}}));
-const {mergeCatalog, pickerModel, normalizeRequest, handle, readModels} = await import('../src/bridge.mjs');
+const {mergeCatalog, pickerModel, normalizeRequest, handle, readModels, mapUpstreamError, fetchUsage} = await import('../src/bridge.mjs');
 const model = {slug:'test-model', display_name:'Test <model>', description:'Synthetic fixture',
   visibility:'list', context_window:1000, input_modalities:['text'], default_reasoning_level:'medium',
   supported_reasoning_levels:[{effort:'low'}, {effort:'medium'}, {effort:'high'}, {effort:'xhigh'}, {effort:'max'}],
@@ -37,6 +37,49 @@ test('all reasoning levels have independent normal and Fast variants', () => {
   const normal = pickerModel({...model, additional_speed_tiers:[]});
   assert.equal(normal.variants.length, 5);
   assert.equal(normal.parameterDefinitions.some(p => p.id === 'fast'), false);
+});
+
+test('OAuth model labels use the icon without a ChatGPT suffix and escape model HTML', () => {
+  const picker = pickerModel(model);
+  assert.equal(picker.clientDisplayName, model.display_name);
+  assert.equal(picker.inputboxShortModelName, model.display_name);
+  for (const variant of picker.variants) {
+    assert.ok(variant.displayName.startsWith('<svg'));
+    assert.ok(variant.displayName.includes('Test &lt;model&gt;'));
+    assert.equal(variant.displayName.includes('ChatGPT'), false);
+    assert.equal(variant.displayNameOutsidePicker.includes('ChatGPT'), false);
+  }
+});
+
+test('quota errors stop Cursor retries and retain the bounded service message', () => {
+  const usage = mapUpstreamError(429, {detail:"You've hit your usage limit. Try again later."});
+  assert.equal(usage.status, 402);
+  assert.equal(usage.error.code, 'insufficient_quota');
+  assert.match(usage.error.message, /usage limit/);
+  assert.equal(mapUpstreamError(429, {error:{message:'Too many requests'}}).status, 402);
+  assert.equal(mapUpstreamError(400, {error:{message:'Bad request'}}).status, 400);
+  assert.equal(mapUpstreamError(500, {error:{message:'a'.repeat(2000)}}).error.message.length, 1200);
+  assert.equal(mapUpstreamError(500, {detail:{unexpected:'value'}}).error.message, 'ChatGPT request rejected');
+});
+
+test('usage retrieval maps subscription windows without exposing account credentials', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, 'https://chatgpt.com/backend-api/wham/usage');
+    assert.equal(options.redirect, 'error');
+    assert.ok(options.signal instanceof AbortSignal);
+    assert.equal(options.headers.Authorization, 'Bearer synthetic-token');
+    return Response.json({plan_type:'test-plan', rate_limit:{allowed:true, limit_reached:false,
+      primary_window:{used_percent:37, limit_window_seconds:18000, reset_after_seconds:300, reset_at:1900000000}, secondary_window:null}});
+  };
+  try {
+    const usage = await fetchUsage();
+    assert.equal(usage.planType, 'test-plan');
+    assert.equal(usage.primary.usedPercent, 37);
+    assert.equal(usage.primary.windowSeconds, 18000);
+    assert.equal(usage.secondary, null);
+    assert.equal(JSON.stringify(usage).includes('synthetic-token'), false);
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test('normalization preserves tools and reasoning, translates Fast and gathers instructions', () => {
@@ -82,6 +125,7 @@ test('loopback endpoints require the local key and reject browser origins', asyn
   const base = 'http://127.0.0.1:' + server.address().port;
   try {
     assert.equal((await fetch(base + '/picker-models')).status, 401);
+    assert.equal((await fetch(base + '/usage')).status, 401);
     assert.equal((await fetch(base + '/picker-models', {headers:{Authorization:'Bearer synthetic-test-key', Origin:'https://example.org'}})).status, 403);
     assert.equal((await fetch(base + '/picker-models', {headers:{Authorization:'Bearer synthetic-test-key'}})).status, 200);
     assert.equal((await fetch(base + '/health')).status, 200);

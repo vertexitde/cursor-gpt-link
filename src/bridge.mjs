@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {openaiIcon} from './openai-icon.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -55,8 +56,8 @@ export function pickerModel(m) {
   const fastTooltip='Request priority processing. Fast can consume more of your ChatGPT allowance. Speed and usage depend on the model and your account. The service returned standard processing in our tests, so this switch does not guarantee faster responses. [Details](https://learn.chatgpt.com/docs/agent-configuration/speed)';
   return {
     name: prefix + m.slug, serverModelName: prefix + m.slug,
-    clientDisplayName: m.display_name + ' (ChatGPT)',
-    inputboxShortModelName: m.display_name + ' (ChatGPT)',
+    clientDisplayName: m.display_name,
+    inputboxShortModelName: m.display_name,
     defaultOn: true, supportsAgent: true, supportsImages: m.input_modalities?.includes('image') || false,
     supportsThinking: true, supportsNonMaxMode: true, supportsMaxMode: false,
     supportsPlanMode: true, supportsAutoContext: true, contextTokenLimit: m.context_window,
@@ -72,8 +73,8 @@ export function pickerModel(m) {
     }]:[])],
     variants: m.supported_reasoning_levels.flatMap(v => (fastAvailable?[false,true]:[false]).map(fast=>({
       parameterValues: [{id: 'reasoning', value: v.effort},...(fastAvailable?[{id:'fast',value:String(fast)}]:[])],
-      displayName: escapeHtml(m.display_name) + ' (ChatGPT) <span style="color: var(--cursor-text-tertiary);">'+escapeHtml(labels[v.effort]||v.effort)+(fast?' Fast':'')+'</span>',
-      displayNameOutsidePicker:m.display_name+' (ChatGPT) '+(labels[v.effort]||v.effort)+(fast?' Fast':''),
+      displayName: openaiIcon + escapeHtml(m.display_name) + ' <span style="color: var(--cursor-text-tertiary);">'+escapeHtml(labels[v.effort]||v.effort)+(fast?' Fast':'')+'</span>',
+      displayNameOutsidePicker:m.display_name+' '+(labels[v.effort]||v.effort)+(fast?' Fast':''),
       variantStringRepresentation:prefix+m.slug+'[reasoning='+v.effort+(fastAvailable?',fast='+fast:'')+']',isMaxMode: false,
       tooltipData:{primaryText:'',secondaryText:'',secondaryWarningText:false,icon:'',tertiaryText:'',tertiaryTextUrl:'',markdownContent:m.description+'\n\nReasoning: '+(labels[v.effort]||v.effort)+(fast?'\n\n'+fastTooltip:'')},
       isDefaultNonMaxConfig: v.effort === m.default_reasoning_level && !fast}))),
@@ -86,6 +87,26 @@ export function credentials() {
   const a = JSON.parse(fs.readFileSync(path.join(codexHome, 'auth.json'), 'utf8'));
   if (!a.tokens?.access_token || !a.tokens?.account_id) throw new Error('Sign in with ChatGPT using codex login.');
   return a.tokens;
+}
+
+// ChatGPT subscription usage (same source the Codex CLI shows).
+export async function fetchUsage() {
+  for (let attempt=0;attempt<2;attempt++) {
+    const auth = credentials();
+    const upstream = await fetch('https://chatgpt.com/backend-api/wham/usage',{
+      redirect:'error', signal:AbortSignal.timeout(15000),
+      headers:{Authorization:'Bearer '+auth.access_token,'ChatGPT-Account-Id':auth.account_id,
+        'User-Agent':'codex_cli_rs/0.1',originator:'codex_cli_rs'}});
+    if (upstream.status === 401 && attempt === 0) { await upstream.body.cancel(); await refreshAuth(); continue; }
+    if (!upstream.ok) throw new Error('ChatGPT usage data unavailable ('+upstream.status+').');
+    const u = await upstream.json();
+    const win = w => w==null ? null : {usedPercent:w.used_percent, windowSeconds:w.limit_window_seconds,
+      resetAfterSeconds:w.reset_after_seconds, resetAt:w.reset_at};
+    return {planType:u.plan_type, allowed:u.rate_limit?.allowed, limitReached:u.rate_limit?.limit_reached,
+      primary:win(u.rate_limit?.primary_window), secondary:win(u.rate_limit?.secondary_window),
+      checkedAt:Date.now()};
+  }
+  throw new Error('ChatGPT usage data unavailable.');
 }
 
 // Let Codex own token renewal; never print or copy account credentials.
@@ -146,6 +167,27 @@ export function normalizeRequest(body, models = readModels()) {
 
 function json(res, status, data) { res.writeHead(status, {'Content-Type':'application/json','Cache-Control':'no-store'}); res.end(JSON.stringify(data)); }
 function authorized(req) { return Boolean(config.key) && req.headers.authorization === 'Bearer ' + config.key; }
+function errorText(value) {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') {
+    if (typeof value.message === 'string') return value.message;
+    if (typeof value.detail === 'string') return value.detail;
+  }
+  return '';
+}
+export function mapUpstreamError(status, body) {
+  const detail = errorText(body?.error) || errorText(body?.detail) || errorText(body?.message) || errorText(body);
+  const haystack = [detail, body?.error?.type, body?.error?.code, body?.type, body?.code].filter(Boolean).join(' ').toLowerCase();
+  const usage = status === 402 || /insufficient[_ ]quota|usage[_ ]limit|quota[_ ]exceeded|you(?:'|’)ve hit your usage|you(?:'|’)ve reached your.{0,24}limit|kontingent|limit reached|limit exceeded/.test(haystack);
+  // Cursor retries HTTP 429; a full usage window then stays on "Planning Next Moves".
+  if (usage || status === 429) {
+    return {status:402, error:{
+      message:(detail || (usage ? 'ChatGPT usage limit reached. Please try again later.' : 'ChatGPT rejected the request.')).slice(0,1200),
+      type:'insufficient_quota', code:'insufficient_quota'
+    }};
+  }
+  return {status, error:{message:(detail || 'ChatGPT request rejected').slice(0,1200)}};
+}
 async function readBody(req) {
   const chunks = []; let length = 0;
   for await (const chunk of req) { length += chunk.length; if (length > 24 * 1024 * 1024) throw new Error('Request body is too large.'); chunks.push(chunk); }
@@ -174,6 +216,10 @@ export async function handle(req, res) {
       return json(res,202,{message:'ChatGPT sign-in has been started. If no browser opens, run codex login in a terminal.'});
     }
     if (req.method === 'GET' && req.url === '/picker-models') return json(res,200,{models:pickerModels()});
+    if (req.method === 'GET' && req.url === '/usage') {
+      try { return json(res,200,await fetchUsage()); }
+      catch (error) { return json(res,502,{error:{message:error.message||'Usage data unavailable.'}}); }
+    }
     if (req.method === 'GET' && req.url === '/v1/models') return json(res,200,{object:'list',data:readModels().map(m=>({id:prefix+m.slug,object:'model',owned_by:'openai',context_window:m.context_window}))});
     if (req.method !== 'POST' || req.url !== '/v1/responses') return json(res,404,{error:{message:'Route not supported'}});
     const request = normalizeRequest(await readBody(req));
@@ -192,8 +238,9 @@ export async function handle(req, res) {
       }
       if (!upstream.ok) {
         // Upstream error bodies can contain request metadata; return only a bounded message.
-        let detail='';try {const e=await upstream.json();detail=e.error?.message||e.detail||'';}catch{}
-        return json(res,upstream.status,{error:{message:typeof detail==='string'?detail.slice(0,1200):'ChatGPT request rejected'}});
+        let body={};try {body=await upstream.json();}catch{}
+        const mapped=mapUpstreamError(upstream.status,body);
+        return json(res,mapped.status,{error:mapped.error});
       }
       res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-store'});
       for await (const chunk of upstream.body) {

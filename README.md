@@ -25,13 +25,17 @@ The installer checks the Cursor version, commit and SHA-256 hashes of five origi
 
 ## What it adds
 
-Models appear with `(ChatGPT)` after their names. The list comes from your local Codex model catalog, including each model's supported reasoning levels. The patch does not ship a fixed model list or grant access to models your account cannot use.
+OAuth models appear with a small OpenAI symbol before their names in the model picker. There is no added `ChatGPT` suffix. The list comes from your local Codex model catalog, including each model's supported reasoning levels. The patch does not ship a fixed model list or grant access to models your account cannot use.
 
 The model picker offers reasoning levels such as Low, Medium, High, Very high and Max when the model advertises them. Fast appears when the model metadata advertises a speed tier. Each reasoning level can be combined with Fast independently. Fast is off by default.
 
 A partial catalog refresh preserves previously seen models so entries such as Astra do not disappear just because one cache update omits them. An explicit hidden entry removes the model. The saved catalog is separated by account. A visible cached entry is not proof of current entitlement; the service still decides whether to accept a request.
 
 Text added by this patch is English and does not follow the account language. Existing Cursor controls, including parts of the parameter popover, still use Cursor's own localization. Model descriptions come from the local catalog. The patch does not change the language of the rest of Cursor.
+
+Cursor's **Plan & Usage** settings include a **ChatGPT Subscription** card showing the subscription plan, used allowance and reset time for each reported usage window. It refreshes every minute while the page is open. The bridge retrieves these values from ChatGPT's internal usage endpoint using the existing local sign-in. If retrieval fails, the card shows an unavailable status.
+
+Quota errors are returned as non-retryable errors so Cursor does not remain on "Planning Next Moves" while repeatedly retrying a full usage window. HTTP 429 responses are also converted to HTTP 402 for this reason, including temporary rate limits; retry those requests manually later.
 
 ## Fast mode limitation
 
@@ -67,7 +71,7 @@ Close all Cursor windows and background processes, then run:
 node patcher.mjs install
 ```
 
-Start Cursor again and select a model ending in `(ChatGPT)`. The bridge starts with Cursor and listens only on `127.0.0.1`. A `ChatGPT: Sign in (subscription)` command is also added to the command palette. If that command does not open a browser, use `codex login` in a terminal.
+Start Cursor again and select a model with the OpenAI symbol. The bridge starts with Cursor and listens only on `127.0.0.1`. On Windows, startup replaces the existing worker for this exact bridge installation so code changes take effect. Other Node.js processes and bridge installations are not selected. A `ChatGPT: Sign in (subscription)` command is also added to the command palette. If that command does not open a browser, use `codex login` in a terminal.
 
 The installer detects common per-user and system-wide Cursor locations. It looks for the Codex desktop executable, then for `codex.exe` on PATH. For other locations:
 
@@ -151,4 +155,4 @@ When reporting a problem, include your Cursor version and commit, operating syst
 
 ## License
 
-The patcher and bridge source are provided under the [MIT license](LICENSE). That license does not apply to Cursor, Codex or OpenAI services.
+The patcher and bridge source are provided under the [MIT license](LICENSE). That license does not apply to Cursor, Codex or OpenAI services. See [third-party notices](THIRD_PARTY_NOTICES.md) for the icon source.

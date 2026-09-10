@@ -144,9 +144,9 @@ Close Cursor before install or restore. See README.md for requirements.`);
   }
   const runtime = path.join(stateDir, 'runtime');
   fs.mkdirSync(runtime, {recursive:true});
-  for (const name of ['bridge.mjs', 'config.mjs']) fs.copyFileSync(path.join(sourceDir, 'src', name), path.join(runtime, name));
+  for (const name of ['bridge.mjs', 'config.mjs', 'openai-icon.mjs']) fs.copyFileSync(path.join(sourceDir, 'src', name), path.join(runtime, name));
   installFiles(pending, {backupDir, manifestPath, version:build.version, commit:build.commit});
-  console.log('Installed. Start Cursor and select a model ending in (ChatGPT).');
+  console.log('Installed. Start Cursor and select a model with the OpenAI symbol.');
 }
 
 main().catch(error => { console.error(error.message); process.exitCode = 1; });
