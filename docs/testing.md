@@ -69,3 +69,9 @@ Version 0.1.2 incorporates the locally developed subscription usage card, OpenAI
 Version 0.1.3 adds a separate patch implementation for build `69d099d6568dc97e110ba8184614faf51c4040b0`. Build verification against original files passed for both workbenches, both runtimes and the main process. The actual patched workbench methods passed synthetic SSH-routing checks, and both runtime normalizers preserved every tested reasoning and Fast combination. The workbench checksum matched. No application files are distributed in this repository.
 
 The local prototype returned a successful ChatGPT response after the update, and its catalog and subscription usage endpoints responded successfully. The project owner confirmed model selection and a file edit after reloading the updated Cursor, without specifying provider or window. This is not a separate manual SSH test on 3.20.11. The public installer was checked through candidate generation against original files; it was not used to replace the running private installation.
+
+## Attachments
+
+On September 11, 2026, the installed local GPT bridge with GPT-5.6 Luna identified a generated PNG color and read a validation word embedded only in a PDF. No conversion or text extraction was needed in the bridge. Unit coverage verifies that image and PDF bytes and tool-call history survive normalization, and vision capability follows the model catalog. The request-body ceiling is now 64 MiB including base64 overhead. Separate attachment testing through each Cursor window and SSH is still pending.
+
+See [OpenAI file inputs](https://developers.openai.com/api/docs/guides/file-inputs) for the public input schema; the live check validates the subscription endpoint separately.

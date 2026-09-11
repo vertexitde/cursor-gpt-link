@@ -190,7 +190,7 @@ export function mapUpstreamError(status, body) {
 }
 async function readBody(req) {
   const chunks = []; let length = 0;
-  for await (const chunk of req) { length += chunk.length; if (length > 24 * 1024 * 1024) throw new Error('Request body is too large.'); chunks.push(chunk); }
+  for await (const chunk of req) { length += chunk.length; if (length > 64 * 1024 * 1024) throw new Error('Request exceeds the 64 MiB bridge limit. Send fewer or smaller attachments.'); chunks.push(chunk); }
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 

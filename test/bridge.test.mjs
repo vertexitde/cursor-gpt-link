@@ -131,3 +131,19 @@ test('loopback endpoints require the local key and reject browser origins', asyn
     assert.equal((await fetch(base + '/health')).status, 200);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+
+import {png,pdf} from '../scripts/attachment-fixtures.mjs';
+test('image and PDF inputs retain their original bytes and conversation positions',()=>{
+ const visual={...model,input_modalities:['text','image']};
+ const input=[{role:'user',content:[{type:'input_text',text:'Read the attachments'},
+   {type:'input_image',image_url:'data:image/png;base64,'+png().toString('base64')},
+   {type:'input_file',filename:'sample.pdf',file_data:'data:application/pdf;base64,'+pdf().toString('base64')}]},
+   {type:'function_call',call_id:'test-attachment-call',name:'test_tool',arguments:'{}'},
+   {type:'function_call_output',call_id:'test-attachment-call',output:'Finished'}];
+ const snapshot=structuredClone(input);
+ const request=normalizeRequest({model:'chatgpt-codex/'+model.slug,input},[visual]);
+ assert.deepEqual(request.input,snapshot);assert.deepEqual(input,snapshot);
+ assert.equal(pickerModel(visual).supportsImages,true);
+ assert.equal(pickerModel(model).supportsImages,false);
+});

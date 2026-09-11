@@ -130,6 +130,14 @@ Codex is used for sign-in and token renewal, not as the agent harness. The bridg
 
 Prompts, attachments and tool data in the forwarded request are sent to OpenAI. The bridge does not add request logging. Account credentials are not inserted into Cursor bundles; a generated local bridge key is inserted instead. Local programs running as your user can read that key and the state directory. Do not share your state directory, patched bundles, authentication files or backups.
 
+## Attachments
+
+The Responses request preserves image and file content, including PDFs. Vision support in the picker follows the account's model catalog. Image color recognition and PDF content reading were verified through the local subscription bridge on September 11, 2026. Cursor controls which attachment formats reach the runtime; this does not add every upload feature from the ChatGPT website.
+
+The bridge accepts requests up to 64 MiB including JSON and base64 overhead. Provider file-size and model-context limits still apply. Files remain in memory for forwarding; the bridge does not add an upload cache or fetch local paths.
+
+Run `npm run test:attachments` against an installed bridge to repeat the image and PDF checks. It consumes subscription usage and uses the same `CURSOR_GPT_LINK_HOME` as the installer.
+
 ## Limitations
 
 * Remote SSH responses and file edits are confirmed in the tested setup. Other remote configurations and separate Agents Window SSH coverage still need testing.

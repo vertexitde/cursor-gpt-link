@@ -13,6 +13,7 @@
     "check": "node patcher.mjs check",
     "install-patch": "node patcher.mjs install",
     "uninstall": "node patcher.mjs restore",
-    "restore": "node patcher.mjs restore"
+    "restore": "node patcher.mjs restore",
+    "test:attachments": "node scripts/test-attachments.mjs"
   }
 }
