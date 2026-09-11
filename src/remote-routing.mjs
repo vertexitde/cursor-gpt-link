@@ -22,8 +22,10 @@ export const remoteAnchors = {
   }
 };
 
-export function patchRemoteRouting(source, surface) {
-  const anchors = remoteAnchors[surface];
+export function patchRemoteRouting(source, surface, version='3.20.7') {
+  if(!['3.20.7','3.20.11'].includes(version))throw new Error('Unsupported routing version');
+  const original=remoteAnchors[surface];
+  const anchors=original&&Object.fromEntries(Object.entries(original).map(([key,value])=>[key,version==='3.20.11'?value.replaceAll('edp','ndp').replaceAll('Qey','ity').replaceAll('mIg','SIg').replaceAll('wIg','AIg'):value]));
   if (!anchors) throw new Error('Unknown workbench surface: ' + surface);
   for (const [before, after] of [[anchors.selector, anchors.selection], [anchors.activation, anchors.enabled]]) {
     if (source.split(before).length !== 2) throw new Error('Remote routing anchor not unique: ' + surface + ': ' + before);

@@ -1,15 +1,18 @@
 {
   "name": "cursor-gpt-link",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "Experimental ChatGPT subscription bridge for Cursor's local agent runtime",
   "license": "MIT",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "check": "node patcher.mjs check",
     "install-patch": "node patcher.mjs install",
+    "uninstall": "node patcher.mjs restore",
     "restore": "node patcher.mjs restore"
   }
 }

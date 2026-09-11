@@ -2,15 +2,16 @@
 
 An experimental patch that adds models from your local Codex catalog to Cursor's model picker and routes them through your existing ChatGPT sign-in. It uses Cursor's local agent runtime. It does not install an extension.
 
-This release targets one Windows build of Cursor. It is not a general patch for every Cursor version, operating system, subscription, or model.
+This release targets the two reviewed Windows builds listed below. It is not a general patch for every Cursor version, operating system, subscription, or model.
 
 ## Status
 
 | Item | Current status |
 | --- | --- |
-| Cursor | 3.20.7, Windows x64 |
-| Cursor commit | `979197d5570b168c034c634b3e21f2bea3ea5be0` |
-| Local test date | September 10, 2026 |
+| Cursor | 3.20.11 and 3.20.7, Windows x64 |
+| Latest Cursor commit | `69d099d6568dc97e110ba8184614faf51c4040b0` (3.20.11) |
+| Previous Cursor commit | `979197d5570b168c034c634b3e21f2bea3ea5be0` (3.20.7) |
+| Latest local test date | September 11, 2026 |
 | Node.js used for testing | 26.7.0 |
 | Codex CLI used for testing | 0.153.4 |
 | Text generation through the bridge | Verified with GPT-6 Astra |
@@ -21,11 +22,11 @@ This release targets one Windows build of Cursor. It is not a general patch for 
 | Remote SSH sessions | Responses and remote file edits confirmed working after the 0.1.1 routing fix |
 | Fast mode | Selector and request forwarding verified; actual priority processing not confirmed |
 
-The installer checks the Cursor version, commit and SHA-256 hashes of five original JavaScript bundles. It stops before patching an unknown or already modified build. See [testing notes](docs/testing.md) for the scope of verification.
+Version 0.1.3 adds Cursor 3.20.11 while retaining 3.20.7. The installer selects a version-specific patch and checks the version, commit and SHA-256 hashes of five original JavaScript bundles. It stops before patching an unknown or already modified build. See [testing notes](docs/testing.md) for the scope of verification.
 
 ## What it adds
 
-OAuth models appear with a small OpenAI symbol before their names in the model picker. There is no added `ChatGPT` suffix. The list comes from your local Codex model catalog, including each model's supported reasoning levels. The patch does not ship a fixed model list or grant access to models your account cannot use.
+OAuth models appear with a small OpenAI symbol before their names in the model picker, in their own **ChatGPT Subscription** section. Native Cursor models stay under **Cursor Models**. If cursor-claude-link is also installed, Claude models appear under **Claude Subscription**. Install ChatGPT first and Claude second. Remove them in reverse order because both modify the same Cursor files. The list comes from your local Codex model catalog, including each model's supported reasoning levels. The patch does not ship a fixed model list or grant access to models your account cannot use.
 
 The model picker offers reasoning levels such as Low, Medium, High, Very high and Max when the model advertises them. Fast appears when the model metadata advertises a speed tier. Each reasoning level can be combined with Fast independently. Fast is off by default.
 
@@ -45,7 +46,7 @@ Do not assume a fixed twofold speed increase or a fixed usage multiplier. Availa
 
 ## Requirements
 
-* Windows x64 and the exact Cursor build listed above.
+* Windows x64 and one of the exact Cursor builds listed above.
 * Node.js 22 or newer on PATH. Only Node.js 26.7.0 has been tested locally.
 * A Codex executable and a ChatGPT account with access to the requested models.
 * Existing file-based Codex authentication in `auth.json` and a populated `models_cache.json` in the same Codex home.
@@ -68,8 +69,10 @@ If you have not signed in, run `codex login` and complete the ChatGPT sign-in. O
 Close all Cursor windows and background processes, then run:
 
 ```powershell
-node patcher.mjs install
+npm run install-patch
 ```
+
+This is equivalent to `node patcher.mjs install`. Install on original supported Cursor files. If a Claude patch is already present, restore it with its own installer first, install ChatGPT, then install Claude again.
 
 Start Cursor again and select a model with the OpenAI symbol. The bridge starts with Cursor and listens only on `127.0.0.1`. On Windows, startup replaces the existing worker for this exact bridge installation so code changes take effect. Other Node.js processes and bridge installations are not selected. A `ChatGPT: Sign in (subscription)` command is also added to the command palette. If that command does not open a browser, use `codex login` in a terminal.
 
@@ -91,7 +94,7 @@ The remote host does not need Codex CLI, a ChatGPT sign-in, copied account crede
 
 The earlier patch ran model requests in the workspace extension host. In an SSH session that process runs on the remote machine, where `127.0.0.1` refers to that machine rather than your PC. The dedicated runtime existed in Cursor but was disabled by default. This patch makes it available and selects it for ChatGPT models in remote workspaces. Other models retain their existing runtime selection.
 
-Responses and remote file edits have been confirmed in a manual SSH test after the fix. Both workbench routing methods are checked against the supported build. Separate manual Agents Window coverage is still pending.
+Responses and remote file edits have been confirmed in a manual SSH test after the fix. Both workbench routing methods are checked against the supported builds. Separate manual Agents Window coverage is still pending.
 
 To upgrade an existing public installation, close Cursor, run `node patcher.mjs restore` using the same state directory, update this repository with `git pull`, then run `node patcher.mjs install`. For a private prototype, use its original restore command first.
 
@@ -101,11 +104,13 @@ To upgrade an existing public installation, close Cursor, run `node patcher.mjs 
 node patcher.mjs status
 ```
 
-To remove it, close Cursor and run:
+To remove only this ChatGPT patch, close Cursor and run:
 
 ```powershell
-node patcher.mjs restore
+npm run uninstall
 ```
+
+This is equivalent to `node patcher.mjs restore`. If Claude is also installed, remove it first with `npm run uninstall` in its repository. Then remove ChatGPT. Backups restore the state before each patch; removing the underlying patch first can invalidate the other installation manifest.
 
 Restore verifies both the installed files and the backups before copying originals back. Backups are retained. It refuses to overwrite files changed by a Cursor update or another patch. If an update has replaced the application, use a clean Cursor installation instead of forcing old backups over the new version. The patcher has no force option.
 
@@ -128,7 +133,7 @@ Prompts, attachments and tool data in the forwarded request are sent to OpenAI. 
 ## Limitations
 
 * Remote SSH responses and file edits are confirmed in the tested setup. Other remote configurations and separate Agents Window SSH coverage still need testing.
-* Only the listed Windows x64 client build is supported. macOS and Linux clients, other remote environments and cloud agents are untested.
+* Only the listed Windows x64 client builds are supported. macOS and Linux clients, other remote environments and cloud agents are untested.
 * Tool calls and file edits work in manual local Cursor testing. Separate coverage of the IDE and Agents Window, including approvals and cancellation, has not yet been recorded.
 * Authentication formats, model metadata and the internal endpoint can change independently of Cursor.
 * The bridge uses Codex's local model cache. After switching accounts, open Codex to refresh its cache and reload the Cursor window. A stale cache may temporarily show models the new account cannot use.

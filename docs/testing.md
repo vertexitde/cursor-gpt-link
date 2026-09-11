@@ -1,22 +1,23 @@
 # Testing notes
 
-Recorded on September 10, 2026.
+Updated on September 11, 2026.
 
 ## Environment
 
 | Component | Version |
 | --- | --- |
 | Operating system | Windows, x64 |
-| Cursor | 3.20.7 |
-| Cursor commit | `979197d5570b168c034c634b3e21f2bea3ea5be0` |
+| Cursor | 3.20.11 and 3.20.7 |
+| Cursor 3.20.11 commit | `69d099d6568dc97e110ba8184614faf51c4040b0` |
+| Cursor 3.20.7 commit | `979197d5570b168c034c634b3e21f2bea3ea5be0` |
 | Node.js | 26.7.0 |
 | Codex CLI | 0.153.4 |
 
-The supported original JavaScript file hashes are recorded in [supported-build.json](../src/supported-build.json). File hashes are used because the same version label is not sufficient to establish that minified patch anchors are compatible.
+The original JavaScript hashes are recorded in [the 3.20.7 metadata](../src/supported-build.json) and [the 3.20.11 metadata](../src/supported-build-3.20.11.json). File hashes are used because the same version label is not sufficient to establish that minified patch anchors are compatible.
 
 ## Automated checks
 
-All 21 public unit tests passed locally. They cover partial model refreshes, explicit model hiding, account-separated saved catalogs, supported reasoning and Fast combinations, the default speed setting, request normalization, unsupported settings, local bearer authentication and browser-origin rejection. Installation tests verify exact restoration, refusal of changed application files or damaged backups, and resuming an interrupted restore. Remote routing tests check runtime selection, extension activation and preservation of workspace resources and cancellation signals in both workbenches. Additional checks cover the icon labels, subscription usage mapping, quota errors, and exact bridge-process selection on restart. Tests use synthetic data without access to a real account.
+All 23 public unit tests passed locally. They cover partial model refreshes, explicit model hiding, account-separated saved catalogs, supported reasoning and Fast combinations, the default speed setting, request normalization, unsupported settings, local bearer authentication and browser-origin rejection. Installation tests verify exact restoration, refusal of changed application files or damaged backups, and resuming an interrupted restore. Remote routing tests check runtime selection, extension activation and preservation of workspace resources and cancellation signals in both workbenches. Additional checks cover the icon labels, subscription usage mapping, quota errors, and exact bridge-process selection on restart. Tests use synthetic data without access to a real account.
 
 The GitHub workflow runs this suite on Windows with Node.js 22, 24 and 26. These unit jobs do not contain or test a real Cursor installation.
 
@@ -62,3 +63,9 @@ The UI control and request field work, but faster processing and its usage multi
 ## Subscription usage and model labels
 
 Version 0.1.2 incorporates the locally developed subscription usage card, OpenAI picker icon, quota error handling and bridge restart changes. The public tests use synthetic usage responses. The usage UI patches are checked against both original workbench bundles; a fresh interactive test of the combined public build is still pending.
+
+## Cursor 3.20.11
+
+Version 0.1.3 adds a separate patch implementation for build `69d099d6568dc97e110ba8184614faf51c4040b0`. Build verification against original files passed for both workbenches, both runtimes and the main process. The actual patched workbench methods passed synthetic SSH-routing checks, and both runtime normalizers preserved every tested reasoning and Fast combination. The workbench checksum matched. No application files are distributed in this repository.
+
+The local prototype returned a successful ChatGPT response after the update, and its catalog and subscription usage endpoints responded successfully. The project owner confirmed model selection and a file edit after reloading the updated Cursor, without specifying provider or window. This is not a separate manual SSH test on 3.20.11. The public installer was checked through candidate generation against original files; it was not used to replace the running private installation.

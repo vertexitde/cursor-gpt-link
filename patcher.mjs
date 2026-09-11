@@ -6,11 +6,12 @@ import net from 'node:net';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {buildPatches} from './src/patches.mjs';
+import {supportedBuild} from './src/supported-builds.mjs';
 import {installFiles, restoreFiles, hash} from './src/installation.mjs';
 import {stateDir, configPath} from './src/config.mjs';
 
 const sourceDir = path.dirname(fileURLToPath(import.meta.url));
-const build = JSON.parse(fs.readFileSync(path.join(sourceDir, 'src/supported-build.json'), 'utf8'));
+let build;
 const manifestPath = path.join(stateDir, 'installed.json');
 const args = process.argv.slice(2);
 const command = args.shift() || 'help';
@@ -34,6 +35,7 @@ function cursorRoot() {
 }
 
 function validate(root) {
+  build=supportedBuild(root);
   if (process.platform !== build.platform || process.arch !== build.arch) {
     throw new Error('Only Windows x64 is supported by this release.');
   }
@@ -43,9 +45,9 @@ function validate(root) {
     throw new Error('Unsupported Cursor build. Expected ' + build.version + ' (' + build.commit + ').');
   }
   for (const [relative, expected] of Object.entries(build.files)) {
-    if (hash(fs.readFileSync(path.join(root, relative))) !== expected) {
-      throw new Error('Original file does not match the supported build: ' + relative + '. Restore existing patches first.');
-    }
+    const bytes = fs.readFileSync(path.join(root, relative));
+    if (hash(bytes) === expected) continue;
+    throw new Error('Original file does not match the supported build: ' + relative + '. Restore existing patches first.');
   }
 }
 
@@ -111,7 +113,9 @@ Close Cursor before install or restore. See README.md for requirements.`);
   if (command === 'restore') {
     requireClosedCursor();
     restoreFiles(manifestPath);
-    console.log('Original Cursor files restored. Backups retained.');
+    console.log('ChatGPT patch removed. Backups retained.');
+    const claudeDir=[path.join(sourceDir,'../cursor-claude-link'),path.join(os.homedir(),'cursor-claude-link')].find(dir=>fs.existsSync(path.join(dir,'install.mjs')));
+    if(claudeDir)console.log('If Claude models disappear, run npm run install:patch in '+path.resolve(claudeDir));
     return;
   }
   if (!['check', 'install'].includes(command)) throw new Error('Unknown command: ' + command);

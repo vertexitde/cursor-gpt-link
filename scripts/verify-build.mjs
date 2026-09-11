@@ -7,11 +7,12 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {buildPatches} from '../src/patches.mjs';
+import {supportedBuild} from '../src/supported-builds.mjs';
 import {verifyWorkbenchRouting} from './workbench-routing-check.mjs';
 
 const root = process.argv[2];
 if (!root) throw new Error('Usage: node scripts/verify-build.mjs PATH_TO_ORIGINAL_RESOURCES_APP');
-const build = JSON.parse(fs.readFileSync(new URL('../src/supported-build.json', import.meta.url), 'utf8'));
+const build = supportedBuild(root);
 for (const [relative, expected] of Object.entries(build.files)) {
   assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root, relative))).digest('hex'), expected, relative);
 }
@@ -27,7 +28,7 @@ try {
     execFileSync(process.execPath, ['--check', candidate], {stdio:'pipe', windowsHide:true});
     console.log('Syntax and unique anchors: ' + path.relative(root, file.path));
     if (file.path.includes('workbench.')) {
-      await verifyWorkbenchRouting(file.content);
+      await verifyWorkbenchRouting(file.content, build.version);
       console.log('Native workbench SSH routing and workspace resources: passed');
     }
     if (!file.path.includes('cursor-agent-exec') && !file.path.includes('cursor-local-agent-runtime')) continue;
