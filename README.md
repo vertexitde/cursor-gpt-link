@@ -2,16 +2,17 @@
 
 An experimental patch that adds models from your local Codex catalog to Cursor's model picker and routes them through your existing ChatGPT sign-in. It uses Cursor's local agent runtime. It does not install an extension.
 
-This release targets the two reviewed Windows builds listed below. It is not a general patch for every Cursor version, operating system, subscription, or model.
+This release targets the reviewed Windows builds listed below. It is not a general patch for every Cursor version, operating system, subscription, or model.
 
 ## Status
 
 | Item | Current status |
 | --- | --- |
-| Cursor | 3.20.11 and 3.20.7, Windows x64 |
-| Latest Cursor commit | `69d099d6568dc97e110ba8184614faf51c4040b0` (3.20.11) |
+| Cursor | 3.20.17, 3.20.11 and 3.20.7, Windows x64 |
+| Latest Cursor commit | `0c32194e3fb5ffaced9fb36430b860ec301e1fc0` (3.20.17) |
+| Cursor 3.20.11 commit | `69d099d6568dc97e110ba8184614faf51c4040b0` |
 | Previous Cursor commit | `979197d5570b168c034c634b3e21f2bea3ea5be0` (3.20.7) |
-| Latest local test date | September 11, 2026 |
+| Latest local test date | September 12, 2026 |
 | Node.js used for testing | 26.7.0 |
 | Codex CLI used for testing | 0.153.4 |
 | Text generation through the bridge | Verified with GPT-6 Astra |
@@ -22,7 +23,7 @@ This release targets the two reviewed Windows builds listed below. It is not a g
 | Remote SSH sessions | Responses and remote file edits confirmed working after the 0.1.1 routing fix |
 | Fast mode | Selector and request forwarding verified; actual priority processing not confirmed |
 
-Version 0.1.3 adds Cursor 3.20.11 while retaining 3.20.7. The installer selects a version-specific patch and checks the version, commit and SHA-256 hashes of five original JavaScript bundles. It stops before patching an unknown or already modified build. See [testing notes](docs/testing.md) for the scope of verification.
+Cursor 3.20.17 has its own reviewed patch definitions; support for 3.20.11 and 3.20.7 is retained. The installer selects a version-specific patch and checks the version, commit and SHA-256 hashes of five original JavaScript bundles. It stops before patching an unknown or already modified build. Automated checks passed on 3.20.17; a new manual UI test is still pending. See [testing notes](docs/testing.md) for the scope of verification.
 
 ## What it adds
 

@@ -8,7 +8,7 @@ export async function verifyWorkbenchRouting(source) {
   assert.ok(start >= 0 && end > start, 'Native workbench routing method found');
   const method = source.slice(start, end + 1);
   const identity = value => value;
-  const factory = new Function('cfe', 'hRe', 'fi', 'fr', 'Gh', 'qp', 'hVf', 'jyS', 'cRe', 'XyS', '__useChatgptDedicatedRuntime',
+  const factory = new Function('cfe', 'hRe', 'fi', 'fr', 'Gh', 'qp', 'hVf', 'jyS', 'cRe', 'XyS', 'ofe', 'br', 'Gp', 's1S', '__useChatgptDedicatedRuntime',
     'return ({' + method + '}).runLocalAgentInExtensionHost;');
   for (const [modelId, authority, nativeSetting, expected] of [
     ['chatgpt-codex/test-model', 'ssh-remote+test-host', false, 'dedicated'],
@@ -17,7 +17,7 @@ export async function verifyWorkbenchRouting(source) {
     ['ordinary-model', 'ssh-remote+test-host', true, 'dedicated']
   ]) {
     const route = factory(identity, identity, {wrap:identity}, {wrap:identity}, () => nativeSetting, () => nativeSetting,
-      identity, identity, identity, identity, (model, remote) => model.startsWith('chatgpt-codex/') && Boolean(remote));
+      identity, identity, identity, identity, identity, {wrap:identity}, () => nativeSetting, identity, (model, remote) => model.startsWith('chatgpt-codex/') && Boolean(remote));
     const calls = [];
     const provider = {waitForProviderRegistration:async () => calls.push('registered'),
       runLocalAgent:async (...args) => calls.push(['workspace', ...args])};
