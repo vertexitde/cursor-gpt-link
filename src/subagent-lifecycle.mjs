@@ -85,6 +85,7 @@ const lifecycleSymbols = {
   '3.21.1':  {desktop:{service:'hZe', untrack:'Xi'}, glass:{service:'ude', untrack:'Kr'}},
   '3.21.9':  {desktop:{service:'pZe', untrack:'Xi'}, glass:{service:'lde', untrack:'Qr'}},
   '3.21.12': {desktop:{service:'pZe', untrack:'Xi'}, glass:{service:'lde', untrack:'Jr'}},
+  '3.21.13': {desktop:{service:'pZe', untrack:'Xi'}, glass:{service:'lde', untrack:'Jr'}},
 };
 
 export function patchSubagentLifecycle(source, surface, prefix, version='3.20.21') {

@@ -1,13 +1,14 @@
 # Testing notes
 
-Updated on September 18, 2026.
+Updated on September 19, 2026.
 
 ## Environment
 
 | Component | Version |
 | --- | --- |
 | Operating system | Windows, x64 |
-| Cursor | 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7 |
+| Cursor | 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7 |
+| Cursor 3.21.13 commit | `e44a49c17e334d442e58bbde931d791200f014a0` |
 | Cursor 3.21.12 commit | `05ddb9e824590e2c1db6bd2548dd71bf67ac9d20` |
 | Cursor 3.21.9 commit | `9998796a6096ce83d83a9332bfe7473b985db750` |
 | Cursor 3.21.1 commit | `74f717017ddcbf0554cd8c91ec7e2fb56983a070` |
@@ -20,6 +21,10 @@ Updated on September 18, 2026.
 | Codex CLI | 0.153.4 |
 
 The original JavaScript hashes are recorded in [the 3.20.7 metadata](../src/supported-build.json) and [the 3.20.11 metadata](../src/supported-build-3.20.11.json). File hashes are used because the same version label is not sufficient to establish that minified patch anchors are compatible.
+
+## Cursor 3.21.13 update
+
+Cursor 3.21.13 renamed the obfuscated workbench symbols again; the anchored code is unchanged and the runtime bundles needed no change. The extractor was validated against the reviewed 3.21.12 values before this build was derived. Recycled names caught the eye again: the editor identifier that meant the tool-former capability here was the untracked reader in the Agents Window a build earlier, which is why whole anchors are replaced rather than single symbols. All automated checks pass and the three patches were installed together on a local 3.21.13. Live model selection, tool calls, file edits, remote SSH and attachment workflows have not been confirmed on this build.
 
 ## Cursor 3.21.12 update
 

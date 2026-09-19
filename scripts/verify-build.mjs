@@ -35,16 +35,16 @@ try {
     execFileSync(process.execPath, ['--check', candidate], {stdio:'pipe', windowsHide:true});
     console.log('Syntax and unique anchors: ' + path.relative(root, file.path));
     if (file.path.includes('workbench.')) {
-      if(['3.20.23','3.21.1','3.21.9','3.21.12'].includes(build.version))verifySubscriptionUi(file.content);
-      if(['3.20.21','3.20.23','3.21.1','3.21.9','3.21.12'].includes(build.version))await verifyConversationActionsWorkbench(file.content,['chatgpt-codex/']);
-      if(['3.20.21','3.20.23','3.21.1','3.21.9','3.21.12'].includes(build.version)){verifyMaxMode(file.content);await verifySubagentLifecycle(file.content,['chatgpt-codex/']);}
+      if(['3.20.23','3.21.1','3.21.9','3.21.12','3.21.13'].includes(build.version))verifySubscriptionUi(file.content);
+      if(['3.20.21','3.20.23','3.21.1','3.21.9','3.21.12','3.21.13'].includes(build.version))await verifyConversationActionsWorkbench(file.content,['chatgpt-codex/']);
+      if(['3.20.21','3.20.23','3.21.1','3.21.9','3.21.12','3.21.13'].includes(build.version)){verifyMaxMode(file.content);await verifySubagentLifecycle(file.content,['chatgpt-codex/']);}
       await verifyWorkbenchRouting(file.content, build.version);
-      if(['3.20.17','3.20.21','3.20.23','3.21.1','3.21.9','3.21.12'].includes(build.version))await verifySubagentRegistration(file.content);
+      if(['3.20.17','3.20.21','3.20.23','3.21.1','3.21.9','3.21.12','3.21.13'].includes(build.version))await verifySubagentRegistration(file.content);
       console.log('Native workbench SSH routing and workspace resources: passed');
     }
     if (!file.path.includes('cursor-agent-exec') && !file.path.includes('cursor-local-agent-runtime')) continue;
-    if(['3.20.17','3.20.21','3.20.23','3.21.1','3.21.9','3.21.12'].includes(build.version))await verifySubagentModels(file.content);
-    if(['3.20.21','3.20.23','3.21.1','3.21.9','3.21.12'].includes(build.version)){verifyConversationActionsRuntime(file.content);verifySubagentSettings(file.content);verifyContextBudget(file.content,{id:'chatgpt-codex/test',capabilities:{context_length:272000}});}
+    if(['3.20.17','3.20.21','3.20.23','3.21.1','3.21.9','3.21.12','3.21.13'].includes(build.version))await verifySubagentModels(file.content);
+    if(['3.20.21','3.20.23','3.21.1','3.21.9','3.21.12','3.21.13'].includes(build.version)){verifyConversationActionsRuntime(file.content);verifySubagentSettings(file.content);verifyContextBudget(file.content,{id:'chatgpt-codex/test',capabilities:{context_length:272000}});}
     // 3.21.1 rotated these minified locals; their positions are what matters.
     const header = file.content.match(/function\(e,t,[\w$]+,[\w$]+,[\w$]+,[\w$]+=!1,i\)\{const a=function\(e\)\{/);
     assert.ok(header, 'Normalizer function found');
