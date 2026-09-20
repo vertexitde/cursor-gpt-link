@@ -1,0 +1,14 @@
+{
+  "version": "3.21.16",
+  "commit": "8ae78e8eee1e63479c7e0504b664bc0a80c68000",
+  "platform": "win32",
+  "arch": "x64",
+  "files": {
+    "out/vs/workbench/workbench.desktop.main.js": "4317a63511c5c0b266618ba19cc0956935b1dfcd47b926cdd317548d21f0af7d",
+    "out/vs/workbench/workbench.glass.main.js": "a3e6eb2c04af39c49df8e1996b9b9e020cdb461a2313d58c10ecaed15b14d050",
+    "extensions/cursor-agent-exec/dist/main.js": "97603b6282b7c87105109f34df8b17dcb77352afe2319e737308d572d0e26177",
+    "extensions/cursor-local-agent-runtime/dist/main.js": "ea1cf62a9b70aa9b01130360d16f8efcf3dc7211507725d722804e8cc1aae82f",
+    "out/main.js": "e5000e906af738a2338da12c92d2d43e98512cebc9a0a36bbec6a5a186fd4265",
+    "product.json": "bb8f315b4cb7dd80b3e3c3a4a06c6594dd1bac15c1c42a537d923aeb886a8b07"
+  }
+}
