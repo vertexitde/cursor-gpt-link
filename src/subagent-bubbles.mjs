@@ -33,10 +33,12 @@ const bubbleSymbols = {
               glass:  {trim:'voe',task:'St.TASK_V2', params:'v7e', former:'to.TOOL_FORMER'}},
   '3.21.12': {desktop:{trim:'$K', task:'Je.TASK_V2', params:'PBe', former:'es.TOOL_FORMER'},
               glass:  {trim:'voe',task:'St.TASK_V2', params:'_7e', former:'to.TOOL_FORMER'}},
-  '3.21.16': {desktop:{trim:'VK', task:'Je.TASK_V2', params:'PBe', former:'ts.TOOL_FORMER'},
-              glass:  {trim:'boe', task:'yt.TASK_V2', params:'_7e', former:'to.TOOL_FORMER'}},
   '3.21.13': {desktop:{trim:'VK', task:'Je.TASK_V2', params:'PBe', former:'Jr.TOOL_FORMER'},
               glass:  {trim:'voe',task:'yt.TASK_V2', params:'_7e', former:'to.TOOL_FORMER'}},
+  '3.21.16': {desktop:{trim:'VK', task:'Je.TASK_V2', params:'PBe', former:'ts.TOOL_FORMER'},
+              glass:  {trim:'boe',task:'yt.TASK_V2', params:'_7e', former:'to.TOOL_FORMER'}},
+  '3.21.18': {desktop:{trim:'VK', task:'Je.TASK_V2', params:'LBe', former:'ts.TOOL_FORMER'},
+              glass:  {trim:'_oe',task:'yt.TASK_V2', params:'_7e', former:'to.TOOL_FORMER'}},
 };
 
 export function patchSubagentBubbles(source, surface, version = '3.20.17') {

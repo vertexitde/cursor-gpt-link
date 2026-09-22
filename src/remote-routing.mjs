@@ -39,13 +39,17 @@ const routingSymbols = {
     desktop: {host:'Qh', local:'jc', activation:'nhp', key:'Ooy', model:'g', arg:'e'},
     glass:   {host:'Pp', local:'Al', activation:'lNg', key:'fNg', model:'p', arg:'t'}
   },
+  '3.21.13': {
+    desktop: {host:'qh', local:'zc', activation:'nhp', key:'Ooy', model:'g', arg:'e'},
+    glass:   {host:'Rp', local:'Rl', activation:'lNg', key:'fNg', model:'p', arg:'t'}
+  },
   '3.21.16': {
     desktop: {host:'qh', local:'Gc', activation:'ihp', key:'Boy', model:'g', arg:'e'},
     glass:   {host:'Rp', local:'Rl', activation:'cNg', key:'vNg', model:'p', arg:'t'}
   },
-  '3.21.13': {
-    desktop: {host:'qh', local:'zc', activation:'nhp', key:'Ooy', model:'g', arg:'e'},
-    glass:   {host:'Rp', local:'Rl', activation:'lNg', key:'fNg', model:'p', arg:'t'}
+  '3.21.18': {
+    desktop: {host:'qh', local:'Gc', activation:'rhp', key:'Uoy', model:'g', arg:'e'},
+    glass:   {host:'Rp', local:'Rl', activation:'uNg', key:'bNg', model:'p', arg:'t'}
   }
 };
 
@@ -61,7 +65,7 @@ function spelledAnchors({host,local,activation,key,model,arg}) {
 }
 
 export function patchRemoteRouting(source, surface, version='3.20.7') {
-  if(!['3.20.7','3.20.11','3.20.17','3.20.21','3.20.23','3.21.1','3.21.9','3.21.12','3.21.13','3.21.16'].includes(version))throw new Error('Unsupported routing version');
+  if(!['3.20.7','3.20.11','3.20.17','3.20.21','3.20.23','3.21.1','3.21.9','3.21.12','3.21.13','3.21.16','3.21.18'].includes(version))throw new Error('Unsupported routing version');
   const original=remoteAnchors[surface];
   const anchors=routingSymbols[version]?.[surface]?spelledAnchors(routingSymbols[version][surface])
     :original&&Object.fromEntries(Object.entries(original).map(([key,value])=>[key,version==='3.20.23'?value.replaceAll('edp','kup').replaceAll('Qc','Zc').replaceAll('Qey','gJ_').replaceAll('mIg','SIg').replaceAll('Cl','kl').replaceAll('wIg','AIg'):version==='3.20.21'?value.replaceAll('edp','Sup').replaceAll('Qc','Zc').replaceAll('Qey','pJ_').replaceAll('mIg','_Ig').replaceAll('Cl','kl').replaceAll('wIg','xIg'):version==='3.20.17'?value.replaceAll('edp','jup').replaceAll('Qc','Zc').replaceAll('Qey','vey').replaceAll('mIg','mAg').replaceAll('Cl','wl').replaceAll('wIg','wAg').replaceAll('qp','Gp'):version==='3.20.11'?value.replaceAll('edp','ndp').replaceAll('Qey','ity').replaceAll('mIg','SIg').replaceAll('wIg','AIg'):value]));

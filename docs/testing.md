@@ -1,13 +1,14 @@
 # Testing notes
 
-Updated on September 20, 2026.
+Updated on September 22, 2026.
 
 ## Environment
 
 | Component | Version |
 | --- | --- |
 | Operating system | Windows, x64 |
-| Cursor | 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7 |
+| Cursor | 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7 |
+| Cursor 3.21.18 commit | `c4730f7d93d787d9ab120af715999f0345ee5bc0` |
 | Cursor 3.21.16 commit | `8ae78e8eee1e63479c7e0504b664bc0a80c68000` |
 | Cursor 3.21.13 commit | `e44a49c17e334d442e58bbde931d791200f014a0` |
 | Cursor 3.21.12 commit | `05ddb9e824590e2c1db6bd2548dd71bf67ac9d20` |
@@ -22,6 +23,10 @@ Updated on September 20, 2026.
 | Codex CLI | 0.153.4 |
 
 The original JavaScript hashes are recorded in [the 3.20.7 metadata](../src/supported-build.json) and [the 3.20.11 metadata](../src/supported-build-3.20.11.json). File hashes are used because the same version label is not sufficient to establish that minified patch anchors are compatible.
+
+## Cursor 3.21.18 update
+
+Cursor 3.21.18 renamed the obfuscated workbench symbols again, this time 11 of 50 in the editor and 13 of 50 in the Agents Window; the anchored code and both runtime bundles are unchanged. The extractor reproduced every reviewed 3.21.16 value unchanged before it was used on this build. The recycled name this time sits in the Plan & Usage card itself: the Agents Window identifier that rendered the card in 3.21.16 is the card's useEffect alias in 3.21.18, so a symbol-by-symbol substitution would have swapped the two. All automated checks pass and the three patches were installed together on a local 3.21.18. Live model selection, tool calls, file edits, remote SSH and attachment workflows have not been confirmed on this build.
 
 ## Cursor 3.21.16 update
 
