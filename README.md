@@ -8,8 +8,9 @@ This release targets the reviewed Windows builds listed below. It is not a gener
 
 | Item | Current status |
 | --- | --- |
-| Cursor | 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7, Windows x64 |
-| Latest Cursor commit | `c4730f7d93d787d9ab120af715999f0345ee5bc0` (3.21.18) |
+| Cursor | 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7, Windows x64 |
+| Latest Cursor commit | `a00aa8754ab5bae70b637d98e126f9dbd4e1e5d0` (3.22.5) |
+| Cursor 3.21.18 commit | `c4730f7d93d787d9ab120af715999f0345ee5bc0` |
 | Cursor 3.21.16 commit | `8ae78e8eee1e63479c7e0504b664bc0a80c68000` |
 | Cursor 3.21.13 commit | `e44a49c17e334d442e58bbde931d791200f014a0` |
 | Cursor 3.21.12 commit | `05ddb9e824590e2c1db6bd2548dd71bf67ac9d20` |
@@ -18,7 +19,7 @@ This release targets the reviewed Windows builds listed below. It is not a gener
 | Previous Cursor commit | `b23e0e2d3c0fc9bb9311f4390230a120ccc9aa50` (3.20.23) |
 | Cursor 3.20.11 commit | `69d099d6568dc97e110ba8184614faf51c4040b0` |
 | Oldest Cursor commit | `979197d5570b168c034c634b3e21f2bea3ea5be0` (3.20.7) |
-| Latest local test date | September 22, 2026 |
+| Latest local test date | September 24, 2026 |
 | Node.js used for testing | 26.7.0 |
 | Codex CLI used for testing | 0.153.4 |
 | Text generation through the bridge | Verified with GPT-6 Astra |
@@ -28,6 +29,8 @@ This release targets the reviewed Windows builds listed below. It is not a gener
 | IDE and Agents Window | Both bundles patched and syntax checked; manual results do not specify coverage of each window |
 | Remote SSH sessions | Responses and remote file edits confirmed working after the 0.1.1 routing fix |
 | Fast mode | Selector and request forwarding verified; actual priority processing not confirmed |
+
+Cursor 3.22.5 is the first minor release these patches have been carried across, and it renamed more than four fifths of the derived symbols: 42 of 50 in the editor and 41 of 50 in the Agents Window. Two things changed beyond the names. The default model map renamed both its prefix binding and its mapper, which every build since 3.20 had left alone. And `subscribeHeaders` was rewritten: the disposed-store check is now an early return instead of a ternary, and the reactive read the old anchor matched on is gone. The shared subagent lifecycle module now recognises both shapes and hydrates the transcript after the new guard, so the older supported builds keep their original treatment. Everything else, including both runtime bundles, needed no change. All automated checks pass and the three patches were installed together on a local 3.22.5. Live model selection, tool calls, file edits, remote SSH and attachment workflows have not been confirmed on this build.
 
 Cursor 3.21.18 renamed the obfuscated workbench symbols again, this time 11 of 50 in the editor and 13 of 50 in the Agents Window; the anchored code and both runtime bundles are unchanged. The extractor reproduced every reviewed 3.21.16 value unchanged before it was used on this build. The recycled name this time sits in the Plan & Usage card itself: the Agents Window identifier that rendered the card in 3.21.16 is the card's useEffect alias in 3.21.18, so a symbol-by-symbol substitution would have swapped the two. All automated checks pass and the three patches were installed together on a local 3.21.18. Live model selection, tool calls, file edits, remote SSH and attachment workflows have not been confirmed on this build.
 
