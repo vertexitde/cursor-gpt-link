@@ -32,6 +32,9 @@ The four runtime-side repairs run wherever the agent runs, so a remote session n
 
 Verified on a live host on September 26, 2026: all three links installed in order on the same build as the client, the shared registry in the host's bundle listing `chatgpt-codex/`, `claude-subscription/` and `inception-mercury/`, and both originals preserved. What sent us looking was a real failure on that host: a `task_v2` call with no `model` was rejected by the unpatched runtime with *Invalid model selection ""*, while the retry that named a model explicitly succeeded.
 
+
+On a Windows host every command travels as an encoded PowerShell script, because the default shell there is cmd and quoting through it is a trap. Verified against a live Windows server on September 26, 2026: PowerShell 5, the same `binwin32-x64<commit>` layout, and a round trip of 200,000 characters with non-ASCII, quotes and backslashes that came back byte for byte with a matching hash.
+
 Not yet confirmed: a remote turn against the patched host.
 
 ## Remote sessions, changed in 3.22.9

@@ -83,7 +83,9 @@ npm run install:remote -- your-server
 
 It reads the two bundles over ssh, patches and syntax-checks them on the client, writes them back with a rename and keeps the untouched copy beside each file. `--check` reports what would change without writing, and `--restore` puts the originals back. The three links share one manifest on the host, each adding its own provider, so install them in the same order as locally.
 
-**After the first time this is automatic.** A local install walks the hosts in the ssh block, and every host that already carries the manifest is brought to the new build. A host that was never patched is passed over: installing on a machine is a decision of its own, not a side effect of patching this client. `--no-remote` skips the step. Only POSIX hosts are supported; anything else is quietly skipped.
+**After the first time this is automatic.** A local install walks the hosts in the ssh block, and every host that already carries the manifest is brought to the new build. A host that was never patched is passed over: installing on a machine is a decision of its own, not a side effect of patching this client. `--no-remote` skips the step.
+
+A Windows host is handled too: its default shell is cmd, so every command travels as an encoded PowerShell script and file contents move as base64 in both directions. `--all` walks the hosts in the ssh block and takes every one that already runs a server for this build; a host you have not opened since the Cursor update has nothing to patch yet, so connect once and run it again.
 
 | Flag | Effect |
 | --- | --- |

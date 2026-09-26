@@ -24,6 +24,55 @@ const relatives = ['extensions/cursor-agent-exec/dist/main.js', 'extensions/curs
 const sha = value => crypto.createHash('sha256').update(value).digest('hex');
 const quote = value => "'" + String(value).replace(/'/g, `'\\''`) + "'";
 
+// A POSIX host and a Windows host answer the same questions through different
+// shells. Both sides move file contents as base64, so nothing depends on the
+// line endings or the code page in between.
+function posixShell(run) {
+  return {
+    kind:'posix', run,
+    join: (dir, relative) => path.posix.join(dir, relative),
+    serverDirs: () => run('ls -d ~/.cursor-server/bin/*/*/ 2>/dev/null || true')
+      .split('\n').map(line => line.trim().replace(/\/$/, '')).filter(Boolean),
+    read: file => Buffer.from(run(`base64 -w0 ${quote(file)}`), 'base64').toString('utf8'),
+    exists: file => run(`test -e ${quote(file)} && echo yes || echo no`).trim() === 'yes',
+    sha256: file => run(`sha256sum ${quote(file)}`).trim().split(/\s+/)[0],
+    copyIfMissing: (from, to) => run(`test -f ${quote(to)} || cp ${quote(from)} ${quote(to)}`),
+    remove: file => run(`rm -f ${quote(file)}`),
+    anyManifest: name => run(`ls ~/.cursor-server/bin/*/*/${name} 2>/dev/null | head -1`).trim().length > 0,
+    write(file, content) {
+      const temporary = file + '.cursor-links-tmp';
+      run(`base64 -d > ${quote(temporary)} && mv ${quote(temporary)} ${quote(file)}`, Buffer.from(content, 'utf8').toString('base64'));
+    }
+  };
+}
+
+// The default shell on a Windows host is cmd, and quoting through it is a trap,
+// so every command travels as an encoded PowerShell script instead.
+function windowsShell(run) {
+  const ps = (script, input) => run(`powershell -NoProfile -EncodedCommand ${Buffer.from(script, 'utf16le').toString('base64')}`, input);
+  const literal = value => "'" + String(value).replace(/'/g, "''") + "'";
+  return {
+    kind:'windows', run:ps,
+    join: (dir, relative) => dir.replace(/[\\/]$/, '') + '\\' + relative.replace(/\//g, '\\'),
+    serverDirs: () => ps(`$ErrorActionPreference='SilentlyContinue'
+Get-ChildItem -Path "$env:USERPROFILE\\.cursor-server\\bin\\*\\*" -Directory | ForEach-Object { $_.FullName }`)
+      .split('\n').map(line => line.trim()).filter(Boolean),
+    read: file => Buffer.from(ps(`[Convert]::ToBase64String([IO.File]::ReadAllBytes(${literal(file)}))`).replace(/\s+/g, ''), 'base64').toString('utf8'),
+    exists: file => ps(`if (Test-Path -LiteralPath ${literal(file)}) { 'yes' } else { 'no' }`).trim() === 'yes',
+    sha256: file => ps(`(Get-FileHash -Algorithm SHA256 -LiteralPath ${literal(file)}).Hash.ToLower()`).trim(),
+    copyIfMissing: (from, to) => ps(`if (-not (Test-Path -LiteralPath ${literal(to)})) { Copy-Item -LiteralPath ${literal(from)} -Destination ${literal(to)} }`),
+    remove: file => ps(`Remove-Item -LiteralPath ${literal(file)} -Force -ErrorAction SilentlyContinue`),
+    anyManifest: name => ps(`$ErrorActionPreference='SilentlyContinue'
+(Get-ChildItem -Path "$env:USERPROFILE\\.cursor-server\\bin\\*\\*\\${name}" | Measure-Object).Count`).trim() !== '0',
+    write(file, content) {
+      const temporary = file + '.cursor-links-tmp';
+      ps(`$in = [Console]::In.ReadToEnd()
+[IO.File]::WriteAllBytes(${literal(temporary)}, [Convert]::FromBase64String($in))
+Move-Item -LiteralPath ${literal(temporary)} -Destination ${literal(file)} -Force`, Buffer.from(content, 'utf8').toString('base64'));
+    }
+  };
+}
+
 function connect(host, {timeout = 10, quiet = false} = {}) {
   const run = (command, input) => execFileSync('ssh',
     ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=' + timeout, host, command],
@@ -31,15 +80,12 @@ function connect(host, {timeout = 10, quiet = false} = {}) {
       // A probe talks to hosts that may not even be POSIX; their shell's
       // complaints are not the user's problem.
       stdio:['pipe', 'pipe', quiet ? 'ignore' : 'inherit']});
-  return {
-    run,
-    read: file => Buffer.from(run(`base64 -w0 ${quote(file)}`), 'base64').toString('utf8'),
-    exists: file => run(`test -e ${quote(file)} && echo yes || echo no`).trim() === 'yes',
-    write(file, content) {
-      const temporary = file + '.cursor-links-tmp';
-      run(`base64 -d > ${quote(temporary)} && mv ${quote(temporary)} ${quote(file)}`, Buffer.from(content, 'utf8').toString('base64'));
-    }
-  };
+  try { if (run('uname -s').trim()) return posixShell(run); } catch { /* not POSIX */ }
+  const windows = windowsShell(run);
+  // A Windows host answers this; an unreachable one does not answer at all.
+  try { windows.run('$PSVersionTable.PSVersion.Major'); }
+  catch { throw new Error('not reachable, or the shell is neither POSIX nor PowerShell'); }
+  return windows;
 }
 
 export function localCommit(appRoot = process.env.CURSOR_APP_ROOT ||
@@ -50,9 +96,9 @@ export function localCommit(appRoot = process.env.CURSOR_APP_ROOT ||
 // The host must run the build this client is patched for: the runtime anchors
 // are read out of the bundle, but only this build has been reviewed.
 export function serverDirectory(ssh, commit, override) {
-  const dirs = ssh.run('ls -d ~/.cursor-server/bin/*/*/ 2>/dev/null || true')
-    .split('\n').map(line => line.trim().replace(/\/$/, '')).filter(Boolean);
-  const matching = override ? [override] : dirs.filter(dir => path.posix.basename(dir) === commit);
+  const dirs = ssh.serverDirs();
+  const basename = dir => dir.replace(/[\\/]$/, '').split(/[\\/]/).pop();
+  const matching = override ? [override] : dirs.filter(dir => basename(dir) === commit);
   return {dirs, dir:matching[0]};
 }
 
@@ -76,13 +122,13 @@ export function installRemote({host, link, marker, patchRuntime, prefix, dir, ch
     for (const entry of dirs) log('  ' + entry);
     throw new Error('No server directory for this Cursor build. Open a remote window once, or pass --dir.');
   }
-  const manifestPath = path.posix.join(serverDir, manifestName);
+  const manifestPath = ssh.join(serverDir, manifestName);
   const manifest = ssh.exists(manifestPath) ? JSON.parse(ssh.read(manifestPath)) : {host, commit, links:[], files:[]};
   if (manifest.links.includes(link)) { log(`${link} is already installed on ${host}.`); return {changed:false, host}; }
 
   const pending = [];
   for (const relative of relatives) {
-    const file = path.posix.join(serverDir, relative);
+    const file = ssh.join(serverDir, relative);
     let current;
     try { current = ssh.read(file); }
     catch { log('absent on the host, skipped: ' + relative); continue; }
@@ -97,10 +143,9 @@ export function installRemote({host, link, marker, patchRuntime, prefix, dir, ch
   for (const entry of pending) {
     const backup = entry.path + backupSuffix;
     // Only the first link stores the untouched copy; later ones build on it.
-    ssh.run(`test -f ${quote(backup)} || cp ${quote(entry.path)} ${quote(backup)}`);
+    ssh.copyIfMissing(entry.path, backup);
     ssh.write(entry.path, entry.patched);
-    const verified = ssh.run(`sha256sum ${quote(entry.path)}`).trim().split(/\s+/)[0];
-    if (verified !== entry.patchedHash) throw new Error('The host holds different content after writing: ' + entry.path);
+    if (ssh.sha256(entry.path) !== entry.patchedHash) throw new Error('The host holds different content after writing: ' + entry.path);
     const known = manifest.files.find(f => f.path === entry.path);
     if (known) known.patchedHash = entry.patchedHash;
     else manifest.files.push({path:entry.path, backup, originalHash:entry.currentHash, patchedHash:entry.patchedHash});
@@ -118,7 +163,7 @@ export function restoreRemote({host, link, dir, log = console.log}) {
   const ssh = connect(host);
   const {dir:serverDir} = serverDirectory(ssh, localCommit(), dir);
   if (!serverDir) { log(`No server directory for this build on ${host}.`); return {changed:false, host}; }
-  const manifestPath = path.posix.join(serverDir, manifestName);
+  const manifestPath = ssh.join(serverDir, manifestName);
   if (!ssh.exists(manifestPath)) { log(`Nothing installed on ${host}.`); return {changed:false, host}; }
   const manifest = JSON.parse(ssh.read(manifestPath));
   if (!manifest.links.includes(link)) { log(`${link} is not installed on ${host}.`); return {changed:false, host}; }
@@ -126,10 +171,10 @@ export function restoreRemote({host, link, dir, log = console.log}) {
   for (const entry of manifest.files) {
     if (sha(ssh.read(entry.path)) !== entry.patchedHash) throw new Error('File changed since the patch, restore stopped: ' + entry.path);
     ssh.write(entry.path, ssh.read(entry.backup));
-    ssh.run(`rm -f ${quote(entry.backup)}`);
+    ssh.remove(entry.backup);
     log('restored ' + entry.path);
   }
-  ssh.run(`rm -f ${quote(manifestPath)}`);
+  ssh.remove(manifestPath);
   log(`Runtime patch removed from ${host}. Reconnect the remote window.`);
   return {changed:true, host};
 }
@@ -147,7 +192,7 @@ export function syncKnownHosts({hosts, link, marker, patchRuntime, prefix, log =
       const probe = connect(host, {timeout:5, quiet:true});
       ({dir:serverDir} = serverDirectory(probe, localCommit()));
       // Known means: some build on this host carries our manifest.
-      known = probe.run(`ls ~/.cursor-server/bin/*/*/${manifestName} 2>/dev/null | head -1`).trim().length > 0;
+      known = probe.anyManifest(manifestName);
     } catch { continue; }
     if (!known) continue;
     if (!serverDir) { log(`remote runtime: ${host} has no server for this build yet, skipped`); results.push({host, changed:false}); continue; }
