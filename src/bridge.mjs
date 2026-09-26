@@ -24,6 +24,9 @@ export function mergeCatalog(previous,current) {
     models.set(m.slug,{slug:m.slug,display_name:m.display_name,description:m.description,
       default_reasoning_level:m.default_reasoning_level,supported_reasoning_levels:m.supported_reasoning_levels,
       visibility:m.visibility,context_window:m.context_window,input_modalities:m.input_modalities,
+      // Carried so an experimental window shows up as soon as the account has
+      // it; the catalog decides, this only passes it through.
+      max_context_window:m.max_context_window,supports_experimental_context:m.supports_experimental_context,
       additional_speed_tiers:m.additional_speed_tiers??models.get(m.slug)?.additional_speed_tiers??[],
       service_tiers:m.service_tiers??models.get(m.slug)?.service_tiers??[]});
   }

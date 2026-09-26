@@ -14,6 +14,7 @@ fs.mkdirSync(process.env.CODEX_HOME);
 fs.writeFileSync(path.join(state, 'config.json'), JSON.stringify({key:'synthetic-test-key'}));
 fs.writeFileSync(path.join(process.env.CODEX_HOME, 'auth.json'), JSON.stringify({tokens:{access_token:'synthetic-token', account_id:'synthetic-account'}}));
 const {mergeCatalog, providerModel, pickerModel, normalizeRequest, handle, readModels, mapUpstreamError, fetchUsage} = await import('../src/bridge.mjs');
+const contextOptions = await import('../src/context-options.mjs');
 const model = {slug:'test-model', display_name:'Test <model>', description:'Synthetic fixture',
   visibility:'list', context_window:1000, input_modalities:['text'], default_reasoning_level:'medium',
   supported_reasoning_levels:[{effort:'low'}, {effort:'medium'}, {effort:'high'}, {effort:'xhigh'}, {effort:'max'}],
@@ -26,6 +27,33 @@ test('partial refresh retains known models and explicit hiding removes them', ()
   assert.deepEqual(mergeCatalog([model], [{slug:model.slug, visibility:'hide'}]), []);
   const refreshed = mergeCatalog([model], [{...model, additional_speed_tiers:undefined}]);
   assert.deepEqual(refreshed[0].additional_speed_tiers, ['fast']);
+});
+
+test('the experimental context window is offered only when the catalog grants it', () => {
+  const {contextSizes} = contextOptions;
+  const large = {...model, context_window:272000, max_context_window:872000};
+  assert.deepEqual(contextSizes(large), [200000, 272000], 'without the flag the ceiling stays out');
+  assert.deepEqual(contextSizes({...large, supports_experimental_context:false}), [200000, 272000]);
+  assert.deepEqual(contextSizes({...large, supports_experimental_context:true}), [200000, 272000, 872000]);
+  assert.deepEqual(contextSizes({...large, max_context_window:272000, supports_experimental_context:true}), [200000, 272000],
+    'a ceiling equal to the window adds nothing');
+  assert.deepEqual(contextSizes({...large, max_context_window:'872000', supports_experimental_context:true}), [200000, 272000, 872000],
+    'the catalog may spell the number as a string');
+  // The picker and the advertised capability follow the largest granted size.
+  const picker = pickerModel({...large, supports_experimental_context:true});
+  assert.equal(picker.contextTokenLimitForMaxMode, 872000);
+  assert.equal(picker.autoContextMaxTokens, 872000);
+  assert.deepEqual(picker.parameterDefinitions[0].parameterType.enumParameter.values.map(v => v.displayName),
+    ['200K', '272K', '872K']);
+  assert.equal(providerModel({...large, supports_experimental_context:true}).capabilities.context_length, 872000);
+  assert.equal(providerModel(large).capabilities.context_length, 272000);
+});
+
+test('a refresh carries the experimental fields through', () => {
+  const current = {...model, context_window:272000, max_context_window:872000, supports_experimental_context:true};
+  const [merged] = mergeCatalog([model], [current]);
+  assert.equal(merged.max_context_window, 872000);
+  assert.equal(merged.supports_experimental_context, true);
 });
 
 test('all reasoning levels have independent normal and Fast variants', () => {
