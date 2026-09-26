@@ -17,6 +17,13 @@ function replaceOnce(source,from,to){
   return source.replace(from,to);
 }
 
+// Serialize values that get spliced into generated JS source. JSON.stringify alone
+// leaves U+2028/U+2029 (breaks out of the string literal in some parsers/bundlers)
+// and "</script"-style sequences unescaped, so neutralize them before interpolation.
+function safeJson(value){
+  return JSON.stringify(value).replace(/[\u2028\u2029<]/g,c=>({'\u2028':'\\u2028','\u2029':'\\u2029','<':'\\u003C'}[c]));
+}
+
 function wrapGetter(source){
   if(/getAvailableDefaultModels\(\)\{return __withChatgptBridgeModels\(/.test(source))return source;
   const getter=source.includes('return __withClaudeBridgeModels([...this._availableDefaultModels()])')
@@ -55,7 +62,7 @@ const pending=[];
 const workbenchPath=path.join(root,'out/vs/workbench/workbench.desktop.main.js');
 let wb=fs.readFileSync(workbenchPath,'utf8');
 const base='http://127.0.0.1:'+cfg.port;
-const prelude=`\n/* cursor-chatgpt-bridge 0.1.3: account credentials stay in local bridge */\nvar __chatgptBridgeModels=${JSON.stringify(models)};\nconst __chatgptBridgeBase=${JSON.stringify(base)},__chatgptBridgeKey=${JSON.stringify(cfg.key)};\nfunction __isChatgptBridgeModel(m){return typeof m==="string"&&m.startsWith("chatgpt-codex/")}\nfunction __withChatgptBridgeModels(models){return [...models.filter(m=>!__isChatgptBridgeModel(m.name)),...__chatgptBridgeModels]}\nasync function __refreshChatgptBridgeModels(){try{const r=await fetch(__chatgptBridgeBase+"/picker-models",{headers:{Authorization:"Bearer "+__chatgptBridgeKey},signal:AbortSignal.timeout(2500)});if(r.ok){const data=await r.json();if(Array.isArray(data.models))__chatgptBridgeModels=data.models}}catch{}}\n${pickerSectionHelpersSrc}\n`;
+const prelude=`\n/* cursor-chatgpt-bridge 0.1.3: account credentials stay in local bridge */\nvar __chatgptBridgeModels=${safeJson(models)};\nconst __chatgptBridgeBase=${safeJson(base)},__chatgptBridgeKey=${safeJson(cfg.key)};\nfunction __isChatgptBridgeModel(m){return typeof m==="string"&&m.startsWith("chatgpt-codex/")}\nfunction __withChatgptBridgeModels(models){return [...models.filter(m=>!__isChatgptBridgeModel(m.name)),...__chatgptBridgeModels]}\nasync function __refreshChatgptBridgeModels(){try{const r=await fetch(__chatgptBridgeBase+"/picker-models",{headers:{Authorization:"Bearer "+__chatgptBridgeKey},signal:AbortSignal.timeout(2500)});if(r.ok){const data=await r.json();if(Array.isArray(data.models))__chatgptBridgeModels=data.models}}catch{}}\n${pickerSectionHelpersSrc}\n`;
 wb=prelude+wb;
 wb=wrapGetter(wb);
 wb=replaceOnce(wb,'async refreshDefaultModels(){','async refreshDefaultModels(){await __refreshChatgptBridgeModels();');
