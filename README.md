@@ -28,8 +28,10 @@ This release targets the reviewed Windows builds listed below. It is not a gener
 | File edits | Confirmed working in manual local Cursor testing |
 | Reasoning selection | Forwarding verified in both local runtimes |
 | IDE and Agents Window | Both bundles patched and syntax checked; manual results do not specify coverage of each window |
-| Remote SSH sessions | Responses and remote file edits confirmed working after the 0.1.1 routing fix |
+| Remote SSH sessions | From 3.22.9 the agent runs on the host and reaches the bridge through an ssh reverse forward the installer writes; automated checks pass, live remote use is unconfirmed |
 | Fast mode | Selector and request forwarding verified; actual priority processing not confirmed |
+
+Remote SSH sessions changed with 3.22.9. Until then a remote session kept the agent in Cursor's dedicated UI runtime so that the bridge, which listens on the client's loopback, stayed reachable. That runtime resolves paths with the client's own path module: on a Windows client against a Linux host, the workspace path `/srv/app` became `C:\\srv\\app`, and the runtime then looked there for `.cursor/rules`, ran `git rev-parse` in it, walked its ignore files up to the drive root and built the sandbox policy from it. From 3.22.9 the agent runs on the SSH host, where the workspace actually is, and the bridge is published on that host's loopback with an ssh reverse forward that `cursor-gpt-link` writes into `~/.ssh/config`. See [Remote sessions](#remote-sessions).
 
 Cursor 3.22.9 renamed symbols again and changed nothing else: 16 of 50 in the editor, 31 of 50 in the Agents Window. The anchors the minor release had moved a build earlier, the model map and `subscribeHeaders`, stayed as 3.22.5 left them, and both runtime bundles are unchanged. The extractor reproduced every reviewed 3.22.5 value before it was used here. All automated checks pass and the three patches were installed together on a local 3.22.9. Live model selection, tool calls, file edits, remote SSH and attachment workflows have not been confirmed on this build.
 
@@ -57,6 +59,28 @@ On Cursor 3.20.21 and 3.20.23, stopping a subscription chat also cancels its act
 
 On Cursor 3.20.21 and 3.20.23, queued follow-ups are forwarded to the local runtime. Starting Build also preserves human messages that have not reached the conversation checkpoint yet. Delivery is confirmed by native message events, and stopping the chat prevents queued work from starting another run. Automated queue and build checks passed; manual Plan-to-Build validation is pending.
 
+
+## Remote sessions
+
+In a Remote-SSH window the agent runs on the host, so the host has to reach the bridge. The installer adds a reverse forward to `~/.ssh/config`, inside a marked block it owns:
+
+```
+# >>> cursor subscription links: bridge forwarding >>>
+Host your-server
+    RemoteForward 127.0.0.1:43187 127.0.0.1:43187
+# <<< cursor subscription links: bridge forwarding <<<
+```
+
+The hosts are the ones you have opened in Cursor that are also declared in your `~/.ssh/config`; nothing else is touched, so ssh to anything outside that list, `git push` included, is unaffected. All three links share the block, each owning the line for its own port, and `npm run restore` removes only its own. A copy of the file as it was before the first change is kept as `config.before-cursor-links`.
+
+| Flag | Effect |
+| --- | --- |
+| `--ssh-hosts=a,b` | Configure exactly these hosts instead of the detected ones |
+| `--no-ssh` | Change nothing in `~/.ssh/config` |
+
+Two things to know. A second ssh session to the same host cannot bind the port again and ssh prints `remote port forwarding failed`; the session still works, and the first one keeps serving the bridge. And the bridge becomes reachable on that host's loopback, so only forward to hosts you trust with it. The bridge still requires its per-installation key.
+
+The agent on the host uses the server's own copy of Cursor's runtime under `~/.cursor-server`, which this patch does not touch. Model selection, tool calls and file edits work from there, but the runtime-side extras this patch adds locally, reasoning effort forwarding and the subagent model repairs, are not present on the host yet.
 
 ## What it adds
 

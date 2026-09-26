@@ -26,6 +26,30 @@ Updated on September 26, 2026.
 
 The original JavaScript hashes are recorded in [the 3.20.7 metadata](../src/supported-build.json) and [the 3.20.11 metadata](../src/supported-build-3.20.11.json). File hashes are used because the same version label is not sufficient to establish that minified patch anchors are compatible.
 
+## Remote sessions, changed in 3.22.9
+
+The patch used to force a remote session into Cursor's dedicated UI runtime so that the bridge on the client's loopback stayed reachable. That runtime has no notion of a remote workspace: `isRemote`, `remotePlatform`, `pathStyle` and `remoteAuthority` do not appear in its bundle at all, and it resolves paths with the client's own path module. The renderer hands it the workspace path in the host's own form (`BP(uri, true, isRemote)` turns the separators back into slashes), so a Windows client against a Linux host produced:
+
+| Call | Result on a Windows client |
+| --- | --- |
+| `resolve("/srv/app")` | `C:\srv\app` |
+| `resolve("/srv/app", "src/main.ts")` | `C:\srv\app\src\main.ts` |
+| `join("/srv/app", "src/main.ts")` | `\srv\app\src\main.ts` |
+
+The runtime does not only format those strings, it uses them: the workspace boundary check for every tool call, `.cursor/rules` discovery, `git rev-parse --git-common-dir` with that directory as `cwd`, the ignore-file walk up to the drive root, and the `.git` probe that builds the sandbox policy. Anything routed back through the renderer worked, anything the runtime resolved itself did not.
+
+From 3.22.9 the agent therefore runs on the SSH host, which is Cursor's own arrangement: the agent-exec provider is registered per remote authority and implements `runLocalAgent` itself. The provider configuration is resolved in the renderer and travels with the request, so the host receives the bridge address and reaches it through the ssh reverse forward.
+
+Verified without touching an installation, against copies of the original 3.22.9 bundles:
+
+- the reproduction above, run against Node's win32 path implementation;
+- the patched workbench no longer contains `__useChatgptDedicatedRuntime` and leaves the native dedicated-runtime decision alone, while the run gate for subscription models stays;
+- the routing check now expects a remote subscription model to take the same route as an ordinary one, and passes on both surfaces;
+- the `~/.ssh/config` writer has unit tests for the block format, three links sharing one block, repeated installs, removal restoring the file byte for byte, an explicit host list and a malformed block being refused;
+- a dry run on a copy of a real configuration, with `ssh -G` used to confirm that OpenSSH parses the result, attaches the three forwards to a configured host and leaves an unrelated host without any.
+
+Not yet confirmed: a live remote turn. The host's own runtime under `~/.cursor-server` is unpatched, so reasoning effort forwarding and the subagent model repairs are missing there.
+
 ## Cursor 3.22.9 update
 
 Cursor 3.22.9 renamed symbols again and changed nothing else: 16 of 50 in the editor, 31 of 50 in the Agents Window. The anchors the minor release had moved a build earlier, the model map and `subscribeHeaders`, stayed as 3.22.5 left them, and both runtime bundles are unchanged. The extractor reproduced every reviewed 3.22.5 value before it was used here. All automated checks pass and the three patches were installed together on a local 3.22.9. Live model selection, tool calls, file edits, remote SSH and attachment workflows have not been confirmed on this build.

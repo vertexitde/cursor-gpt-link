@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 // Exercise the actual patched workbench method with synthetic service objects.
 // This checks argument wiring without distributing the application's bundles.
 export async function verifyWorkbenchRouting(source, version, prefix='chatgpt-codex/') {
+  // From 3.22.9 a remote session runs the agent on the SSH host, so a
+  // subscription model must take the same route as an ordinary one.
+  const {tunnelledBuilds} = await import('../src/remote-routing.mjs');
+  const remoteRoute = tunnelledBuilds.includes(version) ? 'workspace' : 'dedicated';
   const name=source.includes('async _subscriptionNativeLocalAgent(')?'_subscriptionNativeLocalAgent':'runLocalAgentInExtensionHost';
   const start = source.indexOf('async '+name+'(');
   const end = source.indexOf('}runLocalAgentInDedicatedExtensionHost(', start);
@@ -16,7 +20,7 @@ export async function verifyWorkbenchRouting(source, version, prefix='chatgpt-co
   const factory = new Function('__ChatgptSelectedModelIds','__ClaudeSelectedModelIds','__useChatgptDedicatedRuntime','__isClaudeBridgeModel',trim,binary,setting,
     'return ({' + method + '}).runLocalAgentInExtensionHost;');
   for (const [modelId, authority, nativeSetting, expected] of [
-    [prefix+'test-model', 'ssh-remote+test-host', false, 'dedicated'],
+    [prefix+'test-model', 'ssh-remote+test-host', false, remoteRoute],
     [prefix+'test-model', undefined, false, 'workspace'],
     ['ordinary-model', 'ssh-remote+test-host', false, 'workspace'],
     ['ordinary-model', 'ssh-remote+test-host', true, 'dedicated']
