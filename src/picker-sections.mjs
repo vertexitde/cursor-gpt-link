@@ -1,3 +1,4 @@
+import {usageTrailingArgument} from './usage-label.mjs';
 export function withSubscriptionPickerSections(g) {
   const claude=[],chatgpt=[];
   const rest=list=>{
@@ -20,9 +21,11 @@ export function patchPickerSections(source, replaceOnce, {groupReturn, promotedA
     source=replaceOnce(source, groupReturn, 'return __withSubscriptionPickerSections('+groupReturn.slice('return '.length)+')');
   }
   if (!source.includes('"chatgpt-subscription-models"')) {
+    // titleTrailing is where Cursor puts "36% used" on its own section.
+    const trailing=(name,base,key)=>',titleTrailing:'+usageTrailingArgument(name,jsx,base,key);
     source=replaceOnce(source, promotedAnchor,
-      modelsVar+'.chatgpt.length>0&&'+jsx+'('+fmt+',{models:'+modelsVar+'.chatgpt,title:"ChatGPT Subscription",renderModel:'+renderModel+'},"chatgpt-subscription-models"),'+
-      modelsVar+'.claude.length>0&&'+jsx+'('+fmt+',{models:'+modelsVar+'.claude,title:"Claude Subscription",renderModel:'+renderModel+'},"claude-subscription-models"),'+
+      modelsVar+'.chatgpt.length>0&&'+jsx+'('+fmt+',{models:'+modelsVar+'.chatgpt,title:"ChatGPT Subscription"'+trailing('chatgpt','__chatgptBridgeBase','__chatgptBridgeKey')+',renderModel:'+renderModel+'},"chatgpt-subscription-models"),'+
+      modelsVar+'.claude.length>0&&'+jsx+'('+fmt+',{models:'+modelsVar+'.claude,title:"Claude Subscription"'+trailing('claude','__claudeBridgeBase','__claudeBridgeKey')+',renderModel:'+renderModel+'},"claude-subscription-models"),'+
       promotedAnchor);
   }
   return source;

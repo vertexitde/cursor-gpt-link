@@ -26,6 +26,12 @@ Updated on September 26, 2026.
 
 The original JavaScript hashes are recorded in [the 3.20.7 metadata](../src/supported-build.json) and [the 3.20.11 metadata](../src/supported-build-3.20.11.json). File hashes are used because the same version label is not sufficient to establish that minified patch anchors are compatible.
 
+## Usage label in the picker
+
+Cursor renders "36% used" beside its own section from the section component’s `titleTrailing` prop, and the subscription sections now use the same one. `usage-label.mjs` turns either bridge’s answer into a label: Claude reports a list of windows, ChatGPT a primary and a secondary window with their length in seconds, and the window closest to its limit is the one shown. Live values while this was built: ChatGPT 23% of the week, Claude 30% of the 5-hour session against 64% of the week, so Claude reads 64%.
+
+The helpers are prepended by every link, so they are assignments rather than declarations and a second copy simply overwrites the first; a test loads two copies in a row to keep it that way. Unit tests cover both bridge shapes, the tooltip, rounding that never turns a started window into 0%, the throttle, an uninstalled companion and a bridge that fails to answer.
+
 ## Remote runtime patch
 
 The four runtime-side repairs run wherever the agent runs, so a remote session needs them on the host. `scripts/install-remote.mjs` reads the two extension bundles from `~/.cursor-server/bin/<platform>/<commit>` over ssh, applies the same patch functions the local installer uses, checks the result with `node --check` on the client and writes it back by rename. Each file keeps its untouched copy as `main.js.cursor-links-original`, and one shared manifest records the pristine and patched hashes plus which links are installed.
