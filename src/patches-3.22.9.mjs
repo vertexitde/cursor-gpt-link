@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {patchRemoteRouting} from './remote-routing.mjs';
+import {wrapRuntime} from './patches-runtime.mjs';
 import {pickerSectionHelpersSrc, patchPickerSections} from './picker-sections.mjs';
 
 function replaceOnce(source,from,to){
@@ -36,18 +37,6 @@ function addUsage(source, {fn, jsx, original, claudeOnly, symbols}){
   if(source.includes(jsx+'(__chatgptUsageSection,{})'))return source;
   const children=source.includes(claudeOnly)?claudeOnly:original;
   return replaceOnce(source,children,children.slice(0,-1)+','+jsx+'(__chatgptUsageSection,{})]');
-}
-
-function wrapRuntime(runtime){
-  if(runtime.includes('t.startsWith("chatgpt-codex/")'))return runtime;
-  // Cursor 3.21.1 rotated the minified locals and the two runtime bundles no
-  // longer agree on them, so read the parameter list variable off the anchor.
-  const anchor=runtime.match(/\}\(([\w$]+)\);if\(typeof t==="string"&&t\.startsWith\("claude-subscription\/"\)/)
-    ??runtime.match(/\}\(([\w$]+)\);if\(void 0===a\)return;if\(void 0!==i&&"openai_compatible"===[\w$]+\)/);
-  if(!anchor)throw new Error('Reasoning effort anchor missing');
-  const params=anchor[1];
-  const gpt='}('+params+');if(typeof t==="string"&&t.startsWith("chatgpt-codex/")){const selected='+params+'?.find(p=>p.id==="reasoning")?.value;if(selected!==undefined){e.reasoning={...e.reasoning,effort:selected};delete e.reasoning_effort}const fast='+params+'?.find(p=>p.id==="fast")?.value;if(fast==="true")e.service_tier="priority";else delete e.service_tier;return}';
-  return replaceOnce(runtime,anchor[0],gpt+anchor[0].slice(('}('+params+');').length));
 }
 
 export function buildPatches({root,cfg,models,nodePath,bridgePath,stateDir}) {

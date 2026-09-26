@@ -73,10 +73,23 @@ Host your-server
 
 The hosts are the ones you have opened in Cursor that are also declared in your `~/.ssh/config`; nothing else is touched, so ssh to anything outside that list, `git push` included, is unaffected. All three links share the block, each owning the line for its own port, and `npm run restore` removes only its own. A copy of the file as it was before the first change is kept as `config.before-cursor-links`.
 
+### The host's own runtime
+
+The workbench patch is on the client, but four repairs live in the two extension runtimes, and those run wherever the agent runs: reasoning effort and Fast forwarding, the subagent model repair that lets an omitted Task model inherit the parent, the Explore subagent settings, and the receiver for queued follow-ups. In a remote session the host uses its own copy of Cursor under `~/.cursor-server`, so without this step a Task call that omits the optional `model` is rejected there with *Invalid model selection ""*, and the effort you picked is dropped before the request leaves the host.
+
+```powershell
+npm run install:remote -- your-server
+```
+
+It reads the two bundles over ssh, patches and syntax-checks them on the client, writes them back with a rename and keeps the untouched copy beside each file. `--check` reports what would change without writing, and `--restore` puts the originals back. The three links share one manifest on the host, each adding its own provider, so install them in the same order as locally.
+
+**After the first time this is automatic.** A local install walks the hosts in the ssh block, and every host that already carries the manifest is brought to the new build. A host that was never patched is passed over: installing on a machine is a decision of its own, not a side effect of patching this client. `--no-remote` skips the step. Only POSIX hosts are supported; anything else is quietly skipped.
+
 | Flag | Effect |
 | --- | --- |
 | `--ssh-hosts=a,b` | Configure exactly these hosts instead of the detected ones |
 | `--no-ssh` | Change nothing in `~/.ssh/config` |
+| `--no-remote` | Do not carry the runtime patch to known hosts |
 
 Two things to know. A second ssh session to the same host cannot bind the port again and ssh prints `remote port forwarding failed`; the session still works, and the first one keeps serving the bridge. And the bridge becomes reachable on that host's loopback, so only forward to hosts you trust with it. The bridge still requires its per-installation key.
 

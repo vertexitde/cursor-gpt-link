@@ -14,6 +14,7 @@
     "install-patch": "node patcher.mjs install",
     "uninstall": "node patcher.mjs restore",
     "restore": "node patcher.mjs restore",
-    "test:attachments": "node scripts/test-attachments.mjs"
+    "test:attachments": "node scripts/test-attachments.mjs",
+    "install:remote": "node scripts/install-remote.mjs"
   }
 }
