@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {isFusionModel, isReadOnlyTool, scoutMayAnswer, outputItems, fusionPickerModel, fusionProviderModel, condenseInput,
-  handleFusion, fusionRuntimeBranch, patchFusionRuntime, prefixes} from '../src/fusion.mjs';
+  handleFusion, forwardForeign, fusionRuntimeBranch, patchFusionRuntime, prefixes} from '../src/fusion.mjs';
 
 const sse = items => items.map(item => 'event: response.output_item.done\ndata: ' + JSON.stringify({type:'response.output_item.done', item})).join('\n\n') + '\n\n';
 const call = (name, args = '{}') => ({type:'function_call', name, call_id:'c_' + name, arguments:args});
@@ -151,4 +151,16 @@ test('without a choice from the runtime (an unpatched SSH host) the default pair
   await handleFusion({model:'chatgpt-codex/fusion', stream:true, input:[]}, res, {bridges, fetchImpl});
   assert.equal(sent[0].body.model, 'claude-subscription/haiku');
   assert.match(res.body, /ReadFile/);
+});
+
+test('a scout subagent that reaches the other bridge is forwarded there', async () => {
+  const sent = [];
+  const fetchImpl = async (url, init) => { sent.push({url, body:JSON.parse(init.body)}); return new FakeResponse(200, sse([message('done')])); };
+  const res = fakeRes();
+  assert.equal(await forwardForeign({model:'claude-subscription/haiku', input:[]}, res, prefixes.chatgpt, {bridges, fetchImpl}), true);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].body.model, 'claude-subscription/haiku');
+  assert.match(res.body, /done/);
+  assert.equal(await forwardForeign({model:'chatgpt-codex/gpt-6-astra'}, fakeRes(), prefixes.chatgpt, {bridges, fetchImpl}), false);
+  assert.equal(await forwardForeign({model:'kimi/k3'}, fakeRes(), prefixes.chatgpt, {bridges, fetchImpl}), false);
 });

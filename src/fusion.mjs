@@ -231,6 +231,29 @@ export async function handleFusion(body, res, {bridges = localBridges(), fetchIm
   }
 }
 
+// Under Fusion, Cursor's Explore subagent runs on the scout but keeps the
+// parent's provider, so a Claude scout under ChatGPT Fusion reaches the
+// ChatGPT bridge (and the other way round). Such a request goes on to the
+// bridge that serves the model. Returns false when the model is this bridge's own.
+export async function forwardForeign(body, res, own, {bridges = localBridges(), fetchImpl = fetch} = {}) {
+  const model = body?.model;
+  if (typeof model !== 'string' || model.startsWith(own) || !Object.values(prefixes).some(prefix => model.startsWith(prefix))) return false;
+  const bridge = bridgeFor(bridges, model);
+  if (!bridge) { sendJson(res, 502, {error:{message:'The bridge for ' + model + ' is not installed or not running.'}}); return true; }
+  const abort = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) abort.abort(); });
+  try {
+    const answer = await post(bridge, body, abort.signal, fetchImpl);
+    res.writeHead(answer.status, {'content-type':answer.headers.get('content-type') ?? 'text/event-stream', 'cache-control':'no-store'});
+    for await (const chunk of answer.body) res.write(chunk);
+    res.end();
+  } catch (error) {
+    if (abort.signal.aborted) res.destroy();
+    else sendJson(res, 502, {error:{message:'Forwarding ' + model + ': ' + (error?.message ?? error)}});
+  }
+  return true;
+}
+
 // The runtime turns the picker's Scout, Builder and Context into request
 // fields; this is the branch the runtime patches add.
 export const fusionRuntimeBranch = params =>

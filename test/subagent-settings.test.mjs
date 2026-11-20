@@ -39,3 +39,12 @@ test('model tooltip matches Cursor title, context and italic effort layout',()=>
  assert.equal(modelTooltip('Model','Description',200000).markdownContent.includes('Version:'),false);
  assert.ok(modelTooltip('<Model>','[link](url)',200000,'low').markdownContent.includes('\\<Model\\>'));
 });
+
+test('Fusion runs the Explore subagent on its scout without touching the setting',()=>{
+ const native={subagentModels:{modelsBySlug:new Map([['chatgpt-codex/fusion',{slug:'chatgpt-codex/fusion'}]])},subagentModelOverrides:{explore:{type:'model',modelId:'grok-4.7-high-fast'}}};
+ const props=configureTaskProps({modelId:'chatgpt-codex/fusion',modelParameters:[{id:'fusion_scout',value:'claude-subscription/haiku'}]},native);
+ assert.deepEqual(props.subagentModelOverrides.explore,{type:'model',modelId:'claude-subscription/haiku'});
+ assert.ok(props.subagentModels.modelsBySlug.has('claude-subscription/haiku'));
+ assert.deepEqual(props.subagentModels.__ChatgptSelection,{modelId:'claude-subscription/haiku',parameters:[]});
+ assert.equal(native.subagentModelOverrides.explore.modelId,'grok-4.7-high-fast');
+});

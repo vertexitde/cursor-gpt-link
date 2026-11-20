@@ -137,7 +137,7 @@ Every agent step goes to the scout first. When it asks only for read-only tools 
 
 With **Condensed**, the builder does not get the raw output of the scout's reads from the current turn: the scout summarises them once and the builder gets the summary. That saves the most tokens, and the builder can read a file again when it needs the exact text.
 
-What it saves: the many small reading steps of a task run on the cheap model. With Full, the builder still reads the whole conversation on its own steps, so the gain is largest on long explorations. Cursor's own Explore subagent setting is the other way to the same goal within one provider: the main model never sees the raw reads at all.
+What it saves: the many small reading steps of a task run on the cheap model. With Full, the builder still reads the whole conversation on its own steps, so the gain is largest on long explorations. When the agent starts an Explore subagent under Fusion, it runs on the scout, whatever Cursor's Explore subagent setting says; that setting itself is not changed and still applies to every other model.
 
 ## Fast mode limitation
 

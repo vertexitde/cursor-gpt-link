@@ -8,6 +8,18 @@ export function selectedModelIds(existing, overrides, parentModelId) {
 }
 export function configureTaskProps(input, props) {
   if(!input.modelId?.startsWith('chatgpt-codex/'))return props;
+  // Fusion: its Explore subagent is the Scout, whatever Cursor's Explore
+  // setting says; that setting itself is left alone.
+  if(input.modelId==='chatgpt-codex/fusion'){
+    const scout=input.modelParameters?.find(p=>p.id==='fusion_scout')?.value;
+    if(typeof scout==='string'&&scout){
+      const bySlug=props.subagentModels?.modelsBySlug;
+      const modelsBySlug=bySlug instanceof Map?new Map(bySlug).set(scout,bySlug.get(scout)??{slug:scout}):bySlug;
+      return {...props,parentModelParameters:input.modelParameters,
+        subagentModels:{...props.subagentModels,modelsBySlug,__ChatgptSelection:{modelId:scout,parameters:[]}},
+        subagentModelOverrides:{...props.subagentModelOverrides,explore:{type:'model',modelId:scout}}};
+    }
+  }
   const selected=input.subagentModelOverrides?.find(o=>o.subagentType==='explore'&&o.selection?.case==='model');
   const resolved=props.subagentModelOverrides?.explore;
   const parameters=selected?.selection.value?.parameters;

@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { stateDir as dir, config, getCodexHome } from './config.mjs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import {isFusionModel, handleFusion, fusionPickerModel, fusionProviderModel, localBridges, prefixes as fusionPrefixes} from './fusion.mjs';
+import {isFusionModel, handleFusion, forwardForeign, fusionPickerModel, fusionProviderModel, localBridges, prefixes as fusionPrefixes} from './fusion.mjs';
 
 export const prefix = 'chatgpt-codex/';
 const codexHome = getCodexHome();
@@ -256,6 +256,7 @@ export async function handle(req, res) {
     const body = await readBody(req);
     // Fusion steps go to the scout or the builder, on this bridge or another.
     if (isFusionModel(body?.model)) return await handleFusion(body, res);
+    if (await forwardForeign(body, res, prefix)) return;
     const request = normalizeRequest(body);
     const abort = new AbortController();
     const timeout = setTimeout(()=>abort.abort(), 30 * 60 * 1000);
