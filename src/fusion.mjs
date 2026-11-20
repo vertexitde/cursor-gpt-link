@@ -126,6 +126,23 @@ export function outputItems(sse) {
   return {failed:false, items:completed?.length ? completed : items};
 }
 
+// Encrypted reasoning belongs to the model that wrote it. Handed to another
+// model (Luna's to Astra) it garbled the builder's tool calls, so the scout's
+// reasoning reaches Cursor without its encrypted content, the builder gets
+// only reasoning that still carries it (its own), and the scout gets none.
+export const withoutReasoning = input => Array.isArray(input) ? input.filter(item => item?.type !== 'reasoning') : input;
+export const ownReasoningOnly = input => Array.isArray(input) ? input.filter(item => item?.type !== 'reasoning' || item.encrypted_content) : input;
+export function withoutEncryptedReasoning(sse) {
+  const strip = item => { if (item?.type === 'reasoning') delete item.encrypted_content; };
+  return String(sse).split(/\r?\n/).map(line => {
+    if (!line.startsWith('data:')) return line;
+    let event; try { event = JSON.parse(line.slice(5).trim()); } catch { return line; }
+    if (event?.item?.type !== 'reasoning' && !event?.response?.output?.some?.(item => item?.type === 'reasoning')) return line;
+    strip(event.item); event.response?.output?.forEach(strip);
+    return 'data: ' + JSON.stringify(event);
+  }).join('\n');
+}
+
 // True when the scout's step may stand: it asks only for read-only tools.
 export function scoutMayAnswer(items) {
   const calls = items.filter(item => item?.type === 'function_call' || item?.type === 'custom_tool_call');
@@ -206,20 +223,20 @@ export async function handleFusion(body, res, {bridges = localBridges(), fetchIm
   delete base.fusion; delete base.reasoning; delete base.reasoning_effort; delete base.service_tier;
   base.instructions = fusionNote + (base.instructions ? '\n\n' + base.instructions : '');
   try {
-    const scouted = await post(scoutBridge, {...base, model:scout}, abort.signal, fetchImpl);
+    const scouted = await post(scoutBridge, {...base, model:scout, input:withoutReasoning(base.input)}, abort.signal, fetchImpl);
     if (scouted.ok) {
       const text = await scouted.text();
       const {failed, items} = outputItems(text);
       if (!failed && scoutMayAnswer(items)) {
         log('fusion: scout ' + scout + ' answered with ' + items.filter(i => i.type === 'function_call').map(i => i.name).join(', '));
         res.writeHead(200, {'content-type':'text/event-stream', 'cache-control':'no-store'});
-        return res.end(text);
+        return res.end(withoutEncryptedReasoning(text));
       }
     }
-    let input = base.input;
+    let input = ownReasoningOnly(base.input);
     if (options.context === 'condensed') {
-      const summary = await summarise(scoutBridge, {...base, model:scout}, abort.signal, fetchImpl).catch(() => undefined);
-      input = condenseInput(base.input, summary);
+      const summary = await summarise(scoutBridge, {...base, model:scout, input:withoutReasoning(base.input)}, abort.signal, fetchImpl).catch(() => undefined);
+      input = condenseInput(input, summary);
     }
     log('fusion: builder ' + builder + ' takes the step');
     const built = await post(builderBridge, {...base, model:builder, input}, abort.signal, fetchImpl);

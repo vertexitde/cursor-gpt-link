@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {isFusionModel, isReadOnlyTool, scoutMayAnswer, outputItems, fusionPickerModel, fusionProviderModel, condenseInput,
-  handleFusion, forwardForeign, fusionNote, fusionRuntimeBranch, patchFusionRuntime, prefixes} from '../src/fusion.mjs';
+  handleFusion, forwardForeign, fusionNote, withoutEncryptedReasoning, fusionRuntimeBranch, patchFusionRuntime, prefixes} from '../src/fusion.mjs';
 
 const sse = items => items.map(item => 'event: response.output_item.done\ndata: ' + JSON.stringify({type:'response.output_item.done', item})).join('\n\n') + '\n\n';
 const call = (name, args = '{}') => ({type:'function_call', name, call_id:'c_' + name, arguments:args});
@@ -171,4 +171,25 @@ test('scout and builder are told they run as Fusion and not to ask about the spl
   await handleFusion({model:'chatgpt-codex/fusion', stream:true, instructions:'cursor prompt', input:[], fusion:{scout:'claude-subscription/haiku', builder:'chatgpt-codex/gpt-6.2-astra'}}, fakeRes(), {bridges, fetchImpl});
   assert.equal(sent.length, 2);
   for (const body of sent) { assert.ok(body.instructions.startsWith(fusionNote)); assert.ok(body.instructions.endsWith('cursor prompt')); }
+});
+
+test('each model only sees its own encrypted reasoning', async () => {
+  const sent = [];
+  const scoutReasoning = {type:'reasoning', id:'rs_scout', summary:[], encrypted_content:'LUNA'};
+  const fetchImpl = async (url, init) => {
+    const body = JSON.parse(init.body); sent.push(body);
+    return new FakeResponse(200, body.model === 'chatgpt-codex/gpt-6-luna' ? sse([scoutReasoning, call('ReadFile')]) : sse([message('ok')]));
+  };
+  const res = fakeRes();
+  const input = [{type:'message', role:'user', content:[{type:'input_text', text:'go'}]},
+    {type:'reasoning', id:'rs_builder', summary:[], encrypted_content:'ASTRA'}, {type:'reasoning', id:'rs_old_scout', summary:[]}];
+  await handleFusion({model:'chatgpt-codex/fusion', stream:true, input, fusion:{scout:'chatgpt-codex/gpt-6-luna', builder:'chatgpt-codex/gpt-6-astra'}}, res, {bridges, fetchImpl});
+  assert.ok(!sent[0].input.some(item => item.type === 'reasoning'), 'the scout gets no reasoning');
+  assert.ok(res.body.includes('rs_scout') && !res.body.includes('LUNA'), 'the scout reasoning reaches Cursor without its encrypted content');
+  sent.length = 0;
+  const res2 = fakeRes();
+  const fetch2 = async (url, init) => { const body = JSON.parse(init.body); sent.push(body); return new FakeResponse(200, body.model.endsWith('luna') ? sse([call('ApplyPatch')]) : sse([message('ok')])); };
+  await handleFusion({model:'chatgpt-codex/fusion', stream:true, input, fusion:{scout:'chatgpt-codex/gpt-6-luna', builder:'chatgpt-codex/gpt-6-astra'}}, res2, {bridges, fetchImpl:fetch2});
+  assert.deepEqual(sent[1].input.filter(item => item.type === 'reasoning').map(item => item.id), ['rs_builder'], 'the builder keeps only its own');
+  assert.equal(withoutEncryptedReasoning('event: x\ndata: {"type":"response.output_text.delta"}'), 'event: x\ndata: {"type":"response.output_text.delta"}');
 });
