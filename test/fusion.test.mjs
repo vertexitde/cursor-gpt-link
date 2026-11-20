@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {isFusionModel, isReadOnlyTool, scoutMayAnswer, outputItems, fusionPickerModel, fusionProviderModel, condenseInput,
-  handleFusion, forwardForeign, fusionRuntimeBranch, patchFusionRuntime, prefixes} from '../src/fusion.mjs';
+  handleFusion, forwardForeign, fusionNote, fusionRuntimeBranch, patchFusionRuntime, prefixes} from '../src/fusion.mjs';
 
 const sse = items => items.map(item => 'event: response.output_item.done\ndata: ' + JSON.stringify({type:'response.output_item.done', item})).join('\n\n') + '\n\n';
 const call = (name, args = '{}') => ({type:'function_call', name, call_id:'c_' + name, arguments:args});
@@ -163,4 +163,12 @@ test('a scout subagent that reaches the other bridge is forwarded there', async 
   assert.match(res.body, /done/);
   assert.equal(await forwardForeign({model:'chatgpt-codex/gpt-6-astra'}, fakeRes(), prefixes.chatgpt, {bridges, fetchImpl}), false);
   assert.equal(await forwardForeign({model:'kimi/k3'}, fakeRes(), prefixes.chatgpt, {bridges, fetchImpl}), false);
+});
+
+test('scout and builder are told they run as Fusion and not to ask about the split', async () => {
+  const sent = [];
+  const fetchImpl = async (url, init) => { const body = JSON.parse(init.body); sent.push(body); return new FakeResponse(200, sse([body.model.startsWith('claude') ? call('ApplyPatch') : message('ok')])); };
+  await handleFusion({model:'chatgpt-codex/fusion', stream:true, instructions:'cursor prompt', input:[], fusion:{scout:'claude-subscription/haiku', builder:'chatgpt-codex/gpt-6.2-astra'}}, fakeRes(), {bridges, fetchImpl});
+  assert.equal(sent.length, 2);
+  for (const body of sent) { assert.ok(body.instructions.startsWith(fusionNote)); assert.ok(body.instructions.endsWith('cursor prompt')); }
 });

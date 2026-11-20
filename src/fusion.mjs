@@ -204,6 +204,7 @@ export async function handleFusion(body, res, {bridges = localBridges(), fetchIm
   res.on('close', () => { if (!res.writableEnded) abort.abort(); });
   const base = {...body};
   delete base.fusion; delete base.reasoning; delete base.reasoning_effort; delete base.service_tier;
+  base.instructions = fusionNote + (base.instructions ? '\n\n' + base.instructions : '');
   try {
     const scouted = await post(scoutBridge, {...base, model:scout}, abort.signal, fetchImpl);
     if (scouted.ok) {
@@ -253,6 +254,11 @@ export async function forwardForeign(body, res, own, {bridges = localBridges(), 
   }
   return true;
 }
+
+// Every Fusion step tells the model what it is part of. Without it a request
+// such as "test Fusion" made the model rebuild the split by hand with
+// subagents and ask the user how to divide the work.
+export const fusionNote = 'You are running in Cursor as the model "Fusion". Fusion already splits the work automatically: a quick scout model takes the reading and exploring steps, a stronger builder model takes edits, commands and answers, and Explore subagents run on the scout. The user chose this setup in the model picker. Never ask the user how to split context gathering and implementation, which model or agent should do what, or any other question about models or this setup; just work on the task. When the user asks to test Fusion, do a small real task in the open project (read what is needed, then make or propose the change) without asking about the setup first.';
 
 // The runtime turns the picker's Scout, Builder and Context into request
 // fields; this is the branch the runtime patches add.
