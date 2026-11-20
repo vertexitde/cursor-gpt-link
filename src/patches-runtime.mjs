@@ -1,3 +1,4 @@
+import {patchFusionRuntime} from './fusion.mjs';
 // The reasoning and Fast forwarding for the extension runtimes. Shared so the
 // same code patches the client bundles and, through scripts/install-remote.mjs,
 // the copy under ~/.cursor-server on an SSH host.
@@ -15,5 +16,5 @@ export function wrapRuntime(runtime){
   if(!anchor)throw new Error('Reasoning effort anchor missing');
   const params=anchor[1];
   const gpt='}('+params+');if(typeof t==="string"&&t.startsWith("chatgpt-codex/")){const selected='+params+'?.find(p=>p.id==="reasoning")?.value;if(selected!==undefined){e.reasoning={...e.reasoning,effort:selected};delete e.reasoning_effort}const fast='+params+'?.find(p=>p.id==="fast")?.value;if(fast==="true")e.service_tier="priority";else delete e.service_tier;return}';
-  return replaceOnce(runtime,anchor[0],gpt+anchor[0].slice(('}('+params+');').length));
+  return patchFusionRuntime(replaceOnce(runtime,anchor[0],gpt+anchor[0].slice(('}('+params+');').length)),params);
 }

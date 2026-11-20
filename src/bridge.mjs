@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import { stateDir as dir, config, getCodexHome } from './config.mjs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {isFusionModel, handleFusion, fusionPickerModel, fusionProviderModel, localBridges, prefixes as fusionPrefixes} from './fusion.mjs';
 
 export const prefix = 'chatgpt-codex/';
 const codexHome = getCodexHome();
@@ -93,6 +94,24 @@ export function providerModel(m) {
     capabilities:{context_length:contextSizes(m).at(-1),supports_vision:m.input_modalities?.includes('image')||false,supports_reasoning:true}};
 }
 export function pickerModels() { return readModels().map(pickerModel); }
+
+let lastClaudeModels = [];
+// The ChatGPT models plus Fusion, whose Scout and Builder lists also offer the
+// Claude models when cursor-claude-link's bridge answers.
+export async function pickerModelsWithFusion({bridges = localBridges(), fetchImpl = fetch} = {}) {
+  const own = pickerModels();
+  // The last list that arrived stands in while the other bridge is busy.
+  let others = lastClaudeModels;
+  const claude = bridges[fusionPrefixes.claude];
+  if (claude) {
+    try {
+      const response = await fetchImpl(claude.base + '/picker-models?own=1', {headers:{authorization:'Bearer ' + claude.key}, signal:AbortSignal.timeout(1500)});
+      if (response.ok) others = lastClaudeModels = (await response.json()).models ?? [];
+    } catch {}
+  }
+  const fusion = fusionPickerModel(prefix, [...own, ...others]);
+  return fusion ? [...own, fusion] : own;
+}
 
 export function credentials() {
   const a = JSON.parse(fs.readFileSync(path.join(codexHome, 'auth.json'), 'utf8'));
@@ -226,14 +245,18 @@ export async function handle(req, res) {
       }
       return json(res,202,{message:'ChatGPT sign-in has been started. If no browser opens, run codex login in a terminal.'});
     }
-    if (req.method === 'GET' && req.url === '/picker-models') return json(res,200,{models:pickerModels()});
+    if (req.method === 'GET' && req.url === '/picker-models?own=1') return json(res,200,{models:pickerModels()});
+    if (req.method === 'GET' && req.url === '/picker-models') return json(res,200,{models:await pickerModelsWithFusion()});
     if (req.method === 'GET' && req.url === '/usage') {
       try { return json(res,200,await fetchUsage()); }
       catch (error) { return json(res,502,{error:{message:error.message||'Usage data unavailable.'}}); }
     }
-    if (req.method === 'GET' && req.url === '/v1/models') return json(res,200,{object:'list',data:readModels().map(providerModel)});
+    if (req.method === 'GET' && req.url === '/v1/models') return json(res,200,{object:'list',data:[...readModels().map(providerModel),fusionProviderModel(prefix)]});
     if (req.method !== 'POST' || req.url !== '/v1/responses') return json(res,404,{error:{message:'Route not supported'}});
-    const request = normalizeRequest(await readBody(req));
+    const body = await readBody(req);
+    // Fusion steps go to the scout or the builder, on this bridge or another.
+    if (isFusionModel(body?.model)) return await handleFusion(body, res);
+    const request = normalizeRequest(body);
     const abort = new AbortController();
     const timeout = setTimeout(()=>abort.abort(), 30 * 60 * 1000);
     res.on('close',()=>{if(!res.writableEnded)abort.abort();});

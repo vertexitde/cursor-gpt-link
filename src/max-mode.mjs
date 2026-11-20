@@ -1,6 +1,9 @@
 // The native Max toggle changes context capacity, not reasoning or speed.
 export function maxModeVariant(model, parameters, maxMode) {
-  const candidates=model.variants.filter(v=>(v.isMaxMode===true)===maxMode);
+  // A model without variants for this mode (Fusion, Haiku) keeps the chosen
+  // parameters instead of falling back to its first variant.
+  let candidates=model.variants.filter(v=>(v.isMaxMode===true)===maxMode);
+  if(!candidates.length)candidates=model.variants;
   if(!candidates.length)return;
   const requested=parameters.filter(p=>p.id!=='context');
   const score=v=>requested.filter(p=>v.parameterValues.some(q=>q.id===p.id&&q.value===p.value)).length;
