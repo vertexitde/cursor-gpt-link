@@ -218,11 +218,13 @@ export async function handleFusion(body, res, {bridges = localBridges(), fetchIm
 export const fusionRuntimeBranch = params =>
   `if(typeof t==="string"&&/^(chatgpt-codex|claude-subscription)\\/fusion$/.test(t)){const f=${params}?.filter(p=>typeof p.id==="string"&&p.id.startsWith("fusion_"));if(f?.length)e.fusion=Object.fromEntries(f.map(p=>[p.id.slice(7),p.value]))}`;
 
-// Adds the branch once, right after the reasoning parameter is read; the
-// other link's runtime patch finds it and leaves it alone.
+// Puts the branch right after the reasoning parameter is read, ahead of the
+// provider branches, which also match ".../fusion". Each link inserts its own
+// branch at the front, so the Fusion branch is moved back in front every time.
 export function patchFusionRuntime(source, params) {
-  if (source.includes('e.fusion=Object.fromEntries')) return source;
-  const anchor = '}(' + params + ');if(typeof t==="string"&&t.startsWith("';
+  const branch = fusionRuntimeBranch(params), head = '}(' + params + ');';
+  source = source.split(branch).join('');
+  const anchor = head + 'if(typeof t==="string"&&t.startsWith("';
   if (source.split(anchor).length !== 2) throw new Error('Fusion runtime anchor is not unique');
-  return source.replace(anchor, () => '}(' + params + ');' + fusionRuntimeBranch(params) + anchor.slice(('}(' + params + ');').length));
+  return source.replace(anchor, () => head + branch + anchor.slice(head.length));
 }
