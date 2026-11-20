@@ -7,7 +7,8 @@ Updated on September 29, 2026.
 | Component | Version |
 | --- | --- |
 | Operating system | Windows, x64 |
-| Cursor | 3.25.9, 3.24.12, 3.22.12, 3.22.9, 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7 |
+| Cursor | 3.31.12, 3.25.9, 3.24.12, 3.22.12, 3.22.9, 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7 |
+| Cursor 3.31.12 commit | `61ea52f088708259885abd9a37eafec994cd5db0` |
 | Cursor 3.25.9 commit | `5d4df965746c5d09740842fc0f1331ba1c157830` |
 | Cursor 3.24.12 commit | `37b865941ccb31e2fc90c685157534efca87f960` |
 | Cursor 3.22.12 commit | `3a92974361033b2051526321308c2740fe5912c0` |
@@ -69,6 +70,10 @@ Verified without touching an installation, against copies of the original 3.22.9
 - a dry run on a copy of a real configuration, with `ssh -G` used to confirm that OpenSSH parses the result, attaches the three forwards to a configured host and leaves an unrelated host without any.
 
 Not yet confirmed: a live remote turn. The host's own runtime under `~/.cursor-server` is unpatched, so reasoning effort forwarding and the subagent model repairs are missing there.
+
+## Cursor 3.31.12 update
+
+Cursor 3.31.12 (3.26 to 3.30 were skipped) is again supported through its symbol table and file hashes, but it moved a lot. The model picker now builds its sections as a list of `{id, items, title}` entries, once for the menu and once for the grouped view; each link adds its entry before the pinned models, so the order follows the install order, and both renderers learned to show an entry's own trailing label for the usage. The local-mode branch also releases the send slot (`if(x.releaseAfterSend(…),go.localMode)`), the Plan & Usage card is a plain component whose children are expressions, and several minified locals rotated (the local model in the subagent catalog, the Task bubble handle, the cancel locals, the transcript cache). The agent host is now enabled by `_topologyEnabled`, which also covers private inference and Cursor Orbit; the links keep windows on the classic path there too. The runtime bundles are down-levelled again (`Object.assign`), and the user message rebuild moved behind the thread resolution. The extractor reproduced the reviewed 3.25.9 and 3.24.12 symbols before it was used here, and the checks now find methods by parsing and resolve new helpers to inert stubs. All automated checks pass on 3.31.12, and 3.25.9, 3.24.12 and 3.22.12 still verify.
 
 ## Cursor 3.25.9 update
 

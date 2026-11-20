@@ -75,7 +75,7 @@ function gateRun(source, s) {
   const gated = s.runAnchor
     .replace('{const ', '{' + chatgptLocal + 'const ')
     .replace(`localMode:${s.localMode}.localMode})`, `localMode:${s.localMode}.localMode||__chatgptLocal})`)
-    .replace(`if(${s.localMode}.localMode){`, `if(${s.localMode}.localMode||__chatgptLocal){`);
+    .replace(`${s.localMode}.localMode){`, `${s.localMode}.localMode||__chatgptLocal){`);
   return replaceOnce(source, s.runAnchor, gated);
 }
 

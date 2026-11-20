@@ -3,11 +3,19 @@ import {subscriptionComposer} from '../src/subagent-lifecycle.mjs';
 
 // Execute Cursor's extracted methods, not a rewritten approximation of them.
 export async function verifySubagentLifecycle(source, prefixes) {
-  function method(start,end) {
-    const p=source.indexOf(start),q=source.indexOf(end,p+start.length);
-    assert.ok(p>=0&&q>p,start+' found');return source.slice(p,q);
+  // A method ends where its source first parses as one; the neighbours moved
+  // in 3.31, so the parser decides instead of a landmark.
+  function method(start) {
+    const p=source.indexOf(start);
+    assert.ok(p>=0,start+' found');
+    for(let q=source.indexOf('}',p);q>=0&&q-p<200000;q=source.indexOf('}',q+1)){
+      const candidate=source.slice(p,q+1);
+      try{new Function('return ({'+candidate+'})');return candidate;}catch{}
+    }
+    assert.fail(start+' end found');
   }
-  const methods=[method('cancelChat(', 'async cancelCurrentStep('),
+  const cancelStart=source.includes('cancelChat(e){const t=this.composerDataService')?'cancelChat(e){const t=this.composerDataService':'cancelChat(t){const e=this.composerDataService';
+  const methods=[method(cancelStart),
     method('async stopSubagentTree(', 'async _loadSubagentTreeForStop('),
     method('classifyBubble(', 'getBubbleLoadState(')];
   // cancelChat also has call sites earlier in the bundle.

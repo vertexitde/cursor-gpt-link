@@ -113,17 +113,25 @@ export function patchSubagentLifecycle(source, surface, prefix, version='3.20.21
   source = once(source, 'async stopSubagentTree('+arg+'){',
     'async stopSubagentTree('+arg+'){if('+own+'){this.cancelSubagentTree('+arg+');return;}');
   // Stop descendants even when the parent itself has already finished its turn.
-  const cancel = 'const n=this.composerDataService.getComposerData('+handle+'),i=n!==void 0&&(n.status==="generating"||n.conversationActionManager!==void 0);';
+  // The two locals swap names between builds (n,i up to 3.25; i,n from 3.31).
+  const cancels = [...source.matchAll(new RegExp('const ([\\w$]+)=this\\.composerDataService\\.getComposerData\\('+handle+'\\),([\\w$]+)=\\1!==void 0&&\\(\\1\\.status==="generating"\\|\\|\\1\\.conversationActionManager!==void 0\\);', 'g'))];
+  if (cancels.length !== 1) throw new Error('Subagent lifecycle anchor is not unique: cancel');
+  const cancel = cancels[0][0];
   source = once(source, cancel, cancel+'if(subscriptionComposer(this.composerDataService,'+arg+',__subscriptionSubagentPrefixes))this.instantiationService.invokeFunction(s=>s.get('+serviceId+')).cancelSubagentTree('+arg+');');
   source = once(source, 'async createOrResumeSubagent('+arg+'){',
     'async createOrResumeSubagent('+arg+'){return createSubscriptionSubagent(this,'+arg+',__subscriptionSubagentPrefixes)}async _subscriptionNativeCreateSubagent('+arg+'){');
-  source = once(source, 'async _runSubagent('+arg+','+handle+',n){',
-    'async _runSubagent('+arg+','+handle+',n){return runSubscriptionSubagent(this,'+arg+','+handle+',n,__subscriptionSubagentPrefixes)}async _subscriptionNativeRunSubagent('+arg+','+handle+',n){');
+  // The third parameter is n up to 3.25 and i from 3.31.
+  const runs = [...source.matchAll(new RegExp('async _runSubagent\\('+arg+','+handle+',([\\w$]+)\\)\\{', 'g'))];
+  if (runs.length !== 1) throw new Error('Subagent lifecycle anchor is not unique: _runSubagent');
+  const third = runs[0][1];
+  source = once(source, runs[0][0],
+    'async _runSubagent('+arg+','+handle+','+third+'){return runSubscriptionSubagent(this,'+arg+','+handle+','+third+',__subscriptionSubagentPrefixes)}async _subscriptionNativeRunSubagent('+arg+','+handle+','+third+'){');
   // This object survives a switch while its conversationMap can be replaced.
   // From 3.25 Cursor drops the cache itself when the raw map is replaced
-  // (n.rawComposer.conversationMap!==n.rawMap), so there is nothing to add.
+  // (n.rawComposer.conversationMap!==n.rawMap, the local is i from 3.31), so
+  // there is nothing to add.
   const stale = '(n===void 0||n.composer!=='+handle+')&&(n={composer:'+handle+',map:'+untrack+'(()=>'+handle+'.conversationMap)},this.cachedConversationMapRef=n);';
-  if (!source.includes('n.composer!=='+handle+'||n.rawComposer.conversationMap!==n.rawMap')) source = once(source, stale, stale.replace(')&&(n=', '||('+handle+'.subagentInfo&&subscriptionComposer(this.composerDataService,this.composerId,__subscriptionSubagentPrefixes)&&n.map!=='+untrack+'(()=>'+handle+'.conversationMap)))&&(n='));
+  if (!new RegExp('([\\w$]+)\\.composer!=='+handle+'\\|\\|\\1\\.rawComposer\\.conversationMap!==\\1\\.rawMap').test(source)) source = once(source, stale, stale.replace(')&&(n=', '||('+handle+'.subagentInfo&&subscriptionComposer(this.composerDataService,this.composerId,__subscriptionSubagentPrefixes)&&n.map!=='+untrack+'(()=>'+handle+'.conversationMap)))&&(n='));
   // There are several transcript implementations; anchor the Solid composer one.
   // Cursor 3.21.1 returns an empty disposable when the store is already gone;
   // do not hydrate through a disposed store. Cursor 3.22.5 turned that ternary

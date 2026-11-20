@@ -27,11 +27,12 @@ function once(source, before, after) {
 }
 function definition(fn,name){return fn.toString().replace('function '+fn.name,'function '+name);}
 export function patchSubagentSettingsWorkbench(source) {
-  const pattern=/,([\w$]+)=([^;]+?localProviderAgentModelIds\?\?\[\][^;]*?),([\w$]+)=i\?\?this.createDefaultLocalModel\(([\w$]+)\)/g;
+  const pattern=/,([\w$]+)=([^;]+?localProviderAgentModelIds\?\?\[\][^;]*?),([\w$]+)=([\w$]+)\?\?this.createDefaultLocalModel\(([\w$]+)\)/g;
   const matches=[...source.matchAll(pattern)];
   if(matches.length!==1)throw new Error('Local subagent catalog anchor is not unique');
   const match=matches[0];
-  return once(source,match[0],','+match[1]+'=__ChatgptSelectedModelIds('+match[2]+','+match[4]+'.subagentModelOverrides,'+match[4]+'.requestedModel?.modelId??i?.modelId),'+match[3]+'=i??this.createDefaultLocalModel('+match[4]+')')
+  const [, list, catalog, local, model, options]=match;
+  return once(source,match[0],','+list+'=__ChatgptSelectedModelIds('+catalog+','+options+'.subagentModelOverrides,'+options+'.requestedModel?.modelId??'+model+'?.modelId),'+local+'='+model+'??this.createDefaultLocalModel('+options+')')
     +'\n'+definition(selectedModelIds,'__ChatgptSelectedModelIds')+'\n';
 }
 export function patchSubagentSettingsRuntime(source) {

@@ -149,8 +149,9 @@ export function patchConversationActionsWorkbench(source,surface,prefix){
   if(!call)throw new Error('Local action manager forwarding anchor missing');
   source=once(source,call[0],call[0].replace(call[1]+')',call[1]+',a)'));
   const options=local[1].split(',').at(-1);
-  source=once(source,'serializeSubagentStatesAsBlobRefs:this.experimentService.checkFeatureGate(',
-    `subscriptionActionChannel:${options}.subscriptionActionChannel,subscriptionPlanPrepends:${options}.subscriptionPlanPrepends,serializeSubagentStatesAsBlobRefs:this.experimentService.checkFeatureGate(`);
+  // The option is behind a feature gate up to 3.25 and always on from 3.31.
+  source=once(source,'serializeSubagentStatesAsBlobRefs:',
+    `subscriptionActionChannel:${options}.subscriptionActionChannel,subscriptionPlanPrepends:${options}.subscriptionPlanPrepends,serializeSubagentStatesAsBlobRefs:`);
   // The executePlan override otherwise discards collectUnconfirmedHumanMessages.
   const action=source.match(/([\w$]+)=([\w$]+)\.conversationActionOverride\?\?new [\w$]+\(\{action:\{case:"userMessageAction",value:new [\w$]+\(\{userMessage:[\w$]+,requestContext:[\w$]+,prependUserMessages:([\w$]+),/);
   if(!action)throw new Error('Plan action override anchor missing');
@@ -193,7 +194,9 @@ export function patchConversationActionsRuntime(source,prefix){
   // they are used for: the action that carries a user message or a plan, and
   // the user message rebuilt in agent mode.
   const actionName=onlyName(source,/new [\w$]+\.([\w$]+)\(\{action:\{case:"(?:userMessageAction|executePlanAction)"/g,'Conversation action message');
-  const messageName=onlyName(source,/new ([\w$]+)\.([\w$]+)\(\{\.\.\.t\}\),[^;]{0,120}?t\.mode=\1\.[\w$]+\.AGENT/g,'User message',2);
+  // 3.31 copies with Object.assign again and resolves the thread before
+  // switching to agent mode.
+  const messageName=onlyName(source,/new ([\w$]+)\.([\w$]+)\((?:\{\.\.\.t\}|Object\.assign\(\{\},t\))\)[,;][^]{0,300}?t\.mode=\1\.[\w$]+\.AGENT/g,'User message',2);
   const member=name=>new RegExp('([\\w$]+)\\.'+name.replace(/\$/g,'\\$')+'[.(]','g');
   const planMessages=new Set([...source.matchAll(member(messageName))].map(m=>m[1]));
   const namespaces=[...source.matchAll(member(actionName))].filter(m=>planMessages.has(m[1]));

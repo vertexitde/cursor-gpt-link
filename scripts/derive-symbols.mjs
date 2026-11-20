@@ -13,6 +13,25 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+// The index of the bracket that closes the one at `open`, skipping strings,
+// template literals and regular nesting; -1 if the source ends first.
+function closingBracket(source, open) {
+  const pairs = {'[':']', '(':')', '{':'}'}, stack = [];
+  for (let i = open; i < source.length; i++) {
+    const c = source[i];
+    if (c === '"' || c === "'" || c === '`') {
+      for (i++; i < source.length && source[i] !== c; i++) if (source[i] === '\\') i++;
+      continue;
+    }
+    if (pairs[c]) stack.push(pairs[c]);
+    else if (c === ']' || c === ')' || c === '}') {
+      if (stack.pop() !== c) return -1;
+      if (!stack.length) return i;
+    }
+  }
+  return -1;
+}
+
 function deriveSharedSurface(source) {
   const problems = [];
   const out = {};
@@ -56,6 +75,17 @@ function deriveSharedSurface(source) {
     const tail = within('sectionsReturn', source.slice(promoted.index, promoted.index + 6000),
       new RegExp(`return ((?:[\\w$]+\\[\\d+\\]!==[\\w$]+\\|\\|)*[\\w$]+\\[\\d+\\]!==[\\w$]+)\\?\\(([\\w$]+)=([\\w$]+)\\(([\\w$]+),\\{children:\\[([\\w$]+),${escaped},([\\w$]+),([\\w$]+)\\]\\}\\)`));
     if (tail) out.sectionsReturn = tail[0];
+  } else if (!inline.length && !compiled.length && /\{id:"promoted",items:[\w$]+\.promoted,title:[\w$]+\?\.promotedSectionTitle\},\{id:"pinned-others",/.test(source)) {
+    // From 3.31 the picker lists its sections as {id, items, title} entries
+    // that one renderer draws; the patch adds entries and needs only the jsx
+    // function of a renderer for a section's trailing label.
+    const lists = [...source.matchAll(/\{id:"promoted",items:([\w$]+)\.promoted,title:[\w$]+\?\.promotedSectionTitle\},\{id:"pinned-others",/g)];
+    const renderers = [...source.matchAll(/([\w$]+)\([\w$]+\.Section,\{(?:title:([\w$]+)\.title|group:([\w$]+)),trailing:([\w$]+)\.id==="promoted"\?/g)];
+    out.sectionLists = lists.length;
+    out.sectionRenderers = renderers.length;
+    if (lists.length !== 2) problems.push(`sectionLists: ${lists.length} matches`);
+    if (renderers.length !== 2) problems.push(`sectionRenderers: ${renderers.length} matches`);
+    if (renderers[0]) out.jsx = renderers[0][1];
   } else problems.push(`promotedAnchor: ${inline.length} inline and ${compiled.length} compiled matches`);
 
   // Default model list mapping that is persisted afterwards
@@ -65,7 +95,7 @@ function deriveSharedSurface(source) {
   // Local agent run gate
   // Up to 3.22 the local mode is also passed into the run options; from 3.24
   // only the branch checks it. The anchor keeps whichever form the build has.
-  const run = unique('run', /async run\(([\w$,]+)\)\{const ([\w$]+)=([\w$]+)\(u,\{isRunningInTest:u\.isRunningInTest\?\?this\.environmentService\.enableSmokeTestDriver===!0(?:,localMode:([\w$]+)\.localMode)?\}\);if\(([\w$]+)\.localMode\)\{/g);
+  const run = unique('run', /async run\(([\w$,]+)\)\{const ([\w$]+)=([\w$]+)\(u,\{isRunningInTest:u\.isRunningInTest\?\?this\.environmentService\.enableSmokeTestDriver===!0(?:,localMode:([\w$]+)\.localMode)?\}\);if\((?:[\w$]+\.releaseAfterSend\([\w$]+\.conversationId\),)?([\w$]+)\.localMode\)\{/g);
   if (run) {
     if (run[4] !== undefined && run[4] !== run[5]) problems.push('run: the options and the branch read different local-mode flags');
     Object.assign(out, {runAnchor: run[0], runLocalVar: run[2], runFn: run[3], localMode: run[5]});
@@ -140,11 +170,19 @@ export function deriveSurface(source) {
   };
 
   // Plan & Usage card: the component, its jsx call and the four children
-  const usage = unique('planUsage', /([\w$]+)\(([\w$]+),\{legacyScrollGutter:[\w$]+,title:"Plan & Usage",children:\[([\w$,]+)\]\}\)/g);
+  // Up to 3.25 the children are plain locals; from 3.31 they are expressions,
+  // so the list is read up to its matching bracket.
+  const usage = unique('planUsage', /([\w$]+)\(([\w$]+),\{legacyScrollGutter:[\w$]+,title:"Plan & Usage",children:\[/g);
   if (usage) {
     symbols.usageJsx = usage[1];
-    symbols.usageChildren = `title:"Plan & Usage",children:[${usage[3]}]`;
-    const header = [...source.slice(0, usage.index).matchAll(/function ([\w$]+)\(([\w$]+)\)\{const ([\w$]+)=([\w$]+)\((\d+)\)/g)].pop();
+    const open = usage.index + usage[0].length - 1, close = closingBracket(source, open);
+    if (close < 0) problems.push('usageChildren: list end not found');
+    else symbols.usageChildren = source.slice(source.indexOf('title:"Plan & Usage"', usage.index), close + 1);
+    // The React compiler shape up to 3.25; a plain component with destructured
+    // props from 3.31.
+    const compiledHeader = [...source.slice(0, usage.index).matchAll(/function ([\w$]+)\(([\w$]+)\)\{const ([\w$]+)=([\w$]+)\((\d+)\)/g)].pop();
+    const plainHeader = [...source.slice(0, usage.index).matchAll(/function ([\w$]+)\(\{[\w$:,]+\}\)\{/g)].pop();
+    const header = [compiledHeader, plainHeader].filter(Boolean).sort((a, b) => b.index - a.index)[0];
     if (header) symbols.usageFn = header[0]; else problems.push('usageFn: not found');
     // The hook aliases differ per module, so read the ones this component
     // actually calls rather than the nearest import.
@@ -157,7 +195,11 @@ export function deriveSurface(source) {
         return null;
       };
       symbols.usageUseState = only('usageUseState', /\[[\w$]+,[\w$]+\]=([\w$]+)\(/g);
-      symbols.usageUseEffect = only('usageUseEffect', /,([\w$]+)\(([\w$]+),([\w$]+)\);/g);
+      // Compiled components call the effect with hoisted locals; plain ones
+      // pass an arrow and its dependency list.
+      symbols.usageUseEffect = /,([\w$]+)\(([\w$]+),([\w$]+)\);/.test(body)
+        ? only('usageUseEffect', /,([\w$]+)\(([\w$]+),([\w$]+)\);/g)
+        : only('usageUseEffect', /[;,]([\w$]+)\(\(\)=>\{[^]*?\},\[[\w$.,]*\]\)/g);
     }
   }
   const bars = new Set([...source.matchAll(/[\w$]+\(([\w$]+),\{[^{}]{0,200}?variant:"bar"/g)].map(m => m[1]));

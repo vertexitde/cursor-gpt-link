@@ -17,7 +17,7 @@ export async function verifySubagentModels(source) {
  // that returns {kind, modelId}, reports through shims and names each route.
  const speed=body.match(/endsWith\("-fast"\)\?([\w$]+):"default"===[\w$]+\|\|"auto"===[\w$]+\?([\w$]+):void 0/);
  const directLookup=body.match(/=([\w$]+)\([\w$]+,[\w$]+\.modelsBySlug\)/);
- const classify=directLookup?null:role('slug lookup',/,[\w$]+=([\w$]+)\(t,r,n\);if\("composer_hint"===/);
+ const classify=directLookup?null:role('slug lookup',/,[\w$]+=([\w$]+)\(t,[\w$]+,[\w$]+\);if\("composer_hint"===/);
  const shims=body.match(/[\w$]+\.shims\?\?new ([\w$]+)/),routes=body.match(/=([\w$]+)\[[\w$]+\.route\]/);
  const vars={
   [explore[1]]:identity, [explore[2]]:'explore',

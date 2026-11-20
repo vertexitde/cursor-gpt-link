@@ -9,12 +9,19 @@ export const agentHostMarker = '/*cursor-links: classic agent path*/';
 
 export function patchAgentHost(source) {
   if (source.includes(agentHostMarker)) return source;
-  const matches = [...source.matchAll(/this\._agentHostEnabled=\(([\w$]+)\|\|([\w$]+)\)&&([\w$]+),/g)];
-  // From 3.24 the window also asks about private inference and the remote
-  // workspace policy. Earlier builds, reviewed as they are, stay untouched;
-  // verify-build checks that a supported build from 3.24 on carries the marker.
-  if (!matches.length) return source;
-  if (matches.length !== 1) throw new Error('Agent host enablement anchor is not unique');
-  const [anchor, gate, privateInference, policy] = matches[0];
-  return source.replace(anchor, () => `this._agentHostEnabled=${agentHostMarker}!1&&(${gate}||${privateInference})&&${policy},`);
+  // 3.24 and 3.25: this._agentHostEnabled=(gate||privateInference)&&policy,
+  // From 3.31: this._topologyEnabled=gate&&!orbitOff||forced, with the remote
+  // workspace policy read separately when the window asks.
+  const enabled = [...source.matchAll(/this\._agentHostEnabled=\(([\w$]+)\|\|([\w$]+)\)&&([\w$]+),/g)];
+  const topology = [...source.matchAll(/this\._topologyEnabled=([\w$!&|]+),/g)];
+  // Earlier builds, reviewed as they are, stay untouched; verify-build checks
+  // that a supported build from 3.24 on carries the marker.
+  if (!enabled.length && !topology.length) return source;
+  if (enabled.length + topology.length !== 1) throw new Error('Agent host enablement anchor is not unique');
+  if (enabled.length) {
+    const [anchor, gate, privateInference, policy] = enabled[0];
+    return source.replace(anchor, () => `this._agentHostEnabled=${agentHostMarker}!1&&(${gate}||${privateInference})&&${policy},`);
+  }
+  const [anchor, condition] = topology[0];
+  return source.replace(anchor, () => `this._topologyEnabled=${agentHostMarker}!1&&(${condition}),`);
 }

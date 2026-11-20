@@ -1,4 +1,5 @@
 import {usageTrailingArgument} from './usage-label.mjs';
+import {insertListSections} from './section-list.mjs';
 export function withSubscriptionPickerSections(g) {
   const claude=[],chatgpt=[];
   const rest=list=>{
@@ -65,8 +66,12 @@ export function patchPickerSections(source, replaceOnce, symbols) {
     const sections=
       modelsVar+'.chatgpt.length>0&&'+jsx+'('+fmt+',{models:'+modelsVar+'.chatgpt,title:"ChatGPT Subscription"'+trailing('chatgpt','__chatgptBridgeBase','__chatgptBridgeKey')+',renderModel:'+renderModel+'},"chatgpt-subscription-models"),'+
       modelsVar+'.claude.length>0&&'+jsx+'('+fmt+',{models:'+modelsVar+'.claude,title:"Claude Subscription"'+trailing('claude','__claudeBridgeBase','__claudeBridgeKey')+',renderModel:'+renderModel+'},"claude-subscription-models")';
-    source = promotedAnchor
-      ? replaceOnce(source, promotedAnchor, sections + ',' + promotedAnchor)
+    // From 3.31 the sections are list entries; trailing carries the usage.
+    const entries = group => [
+      `{id:"chatgpt-subscription-models",items:${group}.chatgpt??[],title:"ChatGPT Subscription",trailing:${usageTrailingArgument('chatgpt',jsx,'__chatgptBridgeBase','__chatgptBridgeKey')}}`,
+      `{id:"claude-subscription-models",items:${group}.claude??[],title:"Claude Subscription",trailing:${usageTrailingArgument('claude',jsx,'__claudeBridgeBase','__claudeBridgeKey')}}`];
+    source = symbols.sectionLists ? insertListSections(source, entries)
+      : promotedAnchor ? replaceOnce(source, promotedAnchor, sections + ',' + promotedAnchor)
       : insertCompiledSections(source, replaceOnce, symbols, sections);
   }
   return source;

@@ -58,8 +58,12 @@ export function patchSubagentBubbles(source, surface, version = '3.20.17') {
     : bubbleSymbols[version]?.[surface];
   if (!symbols) throw new Error('Unsupported subagent bubble version');
   const trim = symbols.trim;
-  const anchor = 'async _waitForParentTaskBubbleIfPossible('+request+'){const '+parent+'='+trim+'('+request+'.parentConversationId),n='+trim+'('+request+'.toolCallId);if(!'+parent+'||!n)return;const i=this._composerDataService.getHandleIfLoaded('+parent+');';
-  if (source.split(anchor).length !== 2) throw new Error('Subagent bubble anchor is not unique: '+surface);
-  const call = '__ensureChatgptTaskBubble(this._composerDataService,'+request+',i,'+symbols.task+','+symbols.params+','+symbols.former+');';
+  // The locals rotate between builds (the bubble handle is i up to 3.25 and n
+  // from 3.31), so they are read from the method instead of written in.
+  const name = value => value.replace(/\$/g, '\\$');
+  const matches = [...source.matchAll(new RegExp('async _waitForParentTaskBubbleIfPossible\\(([\\w$]+)\\)\\{const ([\\w$]+)='+name(trim)+'\\(\\1\\.parentConversationId\\),([\\w$]+)='+name(trim)+'\\(\\1\\.toolCallId\\);if\\(!\\2\\|\\|!\\3\\)return;const ([\\w$]+)=this\\._composerDataService\\.getHandleIfLoaded\\(\\2\\);', 'g'))];
+  if (matches.length !== 1) throw new Error('Subagent bubble anchor is not unique: '+surface);
+  const [anchor, caller, , , handle] = matches[0];
+  const call = '__ensureChatgptTaskBubble(this._composerDataService,'+caller+','+handle+','+symbols.task+','+symbols.params+','+symbols.former+');';
   return ensureChatgptTaskBubble.toString().replace('function ensureChatgptTaskBubble','function __ensureChatgptTaskBubble')+'\n'+source.replace(anchor,anchor+call);
 }
