@@ -86,9 +86,10 @@ export function fusionPickerModel(prefix, models) {
   const variants = [];
   for (const s of scouts) for (const b of options) for (const c of contexts) {
     const isDefault = s.value === scout && b.value === builder && c.value === 'full';
-    const label = s.displayName + ' → ' + b.displayName + (c.value === 'condensed' ? ' · Condensed' : '');
     variants.push({parameterValues:[{id:'fusion_scout', value:s.value}, {id:'fusion_builder', value:b.value}, {id:'fusion_context', value:c.value}],
-      displayName:name + ' ' + label, displayNameOutsidePicker:name + ' ' + label,
+      // The picker and the input box show only the name; Scout, Builder and
+      // Context stay in their own submenus.
+      displayName:name, displayNameOutsidePicker:name,
       variantStringRepresentation:id + '[' + s.value + ',' + b.value + ',' + c.value + ']',
       isMaxMode:false, isDefaultNonMaxConfig:isDefault, isDefaultMaxConfig:isDefault});
   }
