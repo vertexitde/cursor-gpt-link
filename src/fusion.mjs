@@ -175,11 +175,28 @@ async function summarise(bridge, body, signal, fetchImpl) {
   return items.filter(item => item.type === 'message').flatMap(item => item.content ?? []).map(part => part.text ?? '').join('').trim() || undefined;
 }
 
+// The default Scout and Builder of a section, from the models both bridges list.
+async function defaultPair(prefix, bridges, fetchImpl) {
+  const models = [];
+  for (const bridge of Object.values(bridges)) {
+    try {
+      const response = await fetchImpl(bridge.base + '/picker-models?own=1', {headers:{authorization:'Bearer ' + bridge.key}, signal:AbortSignal.timeout(5000)});
+      if (response.ok) models.push(...((await response.json()).models ?? []));
+    } catch {}
+  }
+  const chosen = fusionPickerModel(prefix, models)?.variants.find(variant => variant.isDefaultNonMaxConfig);
+  const value = id => chosen?.parameterValues.find(p => p.id === id)?.value;
+  return {scout:value('fusion_scout'), builder:value('fusion_builder')};
+}
+
 // Handles one POST /v1/responses for a Fusion model. body is parsed already.
 export async function handleFusion(body, res, {bridges = localBridges(), fetchImpl = fetch, log = () => {}} = {}) {
   const prefix = Object.values(prefixes).find(p => body.model === p + fusionSlug);
   const options = body.fusion ?? {};
-  const scout = options.scout, builder = options.builder;
+  let scout = options.scout, builder = options.builder;
+  // A runtime without the Fusion patch (an SSH host that was not patched yet)
+  // sends no choice; the section's default pair stands in.
+  if (!scout || !builder) ({scout = scout, builder = builder} = await defaultPair(prefix, bridges, fetchImpl));
   if (!scout || !builder) return sendJson(res, 400, {error:{message:'Choose a Scout and a Builder for Fusion in the model picker.'}});
   const scoutBridge = bridgeFor(bridges, scout), builderBridge = bridgeFor(bridges, builder);
   if (!scoutBridge || !builderBridge) return sendJson(res, 502, {error:{message:'Fusion needs the bridge for ' + (!scoutBridge ? scout : builder) + ', which is not installed or not running.'}});

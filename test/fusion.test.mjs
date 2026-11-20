@@ -121,7 +121,7 @@ test('Condensed hands the builder the scout summary instead of the raw reads', a
 
 test('missing choices and bridges are reported', async () => {
   const res = fakeRes();
-  await handleFusion({model:'chatgpt-codex/fusion', input:[]}, res, {bridges});
+  await handleFusion({model:'chatgpt-codex/fusion', input:[]}, res, {bridges, fetchImpl:async () => { throw new Error('offline'); }});
   assert.equal(res.status, 400);
   const other = fakeRes();
   await handleFusion(fusionBody(), other, {bridges:{[prefixes.chatgpt]:bridges[prefixes.chatgpt]}});
@@ -138,4 +138,17 @@ test('the runtime branch turns the picker parameters into the fusion field', () 
   const patched = patchFusionRuntime(source, 'r');
   assert.ok(patched.includes('}(r);if(typeof t==="string"&&/^(chatgpt-codex|claude-subscription)'));
   assert.equal(patchFusionRuntime(patched, 'r'), patched, 'the second link leaves it alone');
+});
+
+test('without a choice from the runtime (an unpatched SSH host) the default pair is used', async () => {
+  const sent = [];
+  const fetchImpl = async (url, init) => {
+    if (url.endsWith('/picker-models?own=1')) return {ok:true, json:async () => ({models:url.startsWith('http://gpt') ? pickers.slice(0, 2) : pickers.slice(2, 4)})};
+    sent.push({url, body:JSON.parse(init.body)});
+    return new FakeResponse(200, sse([call('ReadFile')]));
+  };
+  const res = fakeRes();
+  await handleFusion({model:'chatgpt-codex/fusion', stream:true, input:[]}, res, {bridges, fetchImpl});
+  assert.equal(sent[0].body.model, 'claude-subscription/haiku');
+  assert.match(res.body, /ReadFile/);
 });
