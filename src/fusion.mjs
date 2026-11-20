@@ -207,7 +207,17 @@ async function defaultPair(prefix, bridges, fetchImpl) {
 }
 
 // Handles one POST /v1/responses for a Fusion model. body is parsed already.
-export async function handleFusion(body, res, {bridges = localBridges(), fetchImpl = fetch, log = () => {}} = {}) {
+// Which model took which step, so a Fusion run can be checked afterwards:
+// %TEMP%/cursor-fusion.log, started afresh once it passes 1 MB.
+export const fusionLogPath = path.join(os.tmpdir(), 'cursor-fusion.log');
+export function fusionLog(line) {
+  try {
+    if (fs.existsSync(fusionLogPath) && fs.statSync(fusionLogPath).size > 1024 * 1024) fs.writeFileSync(fusionLogPath, '');
+    fs.appendFileSync(fusionLogPath, new Date().toISOString() + ' ' + line + '\n');
+  } catch {}
+}
+
+export async function handleFusion(body, res, {bridges = localBridges(), fetchImpl = fetch, log = fusionLog} = {}) {
   const prefix = Object.values(prefixes).find(p => body.model === p + fusionSlug);
   const options = body.fusion ?? {};
   let scout = options.scout, builder = options.builder;
@@ -228,7 +238,7 @@ export async function handleFusion(body, res, {bridges = localBridges(), fetchIm
       const text = await scouted.text();
       const {failed, items} = outputItems(text);
       if (!failed && scoutMayAnswer(items)) {
-        log('fusion: scout ' + scout + ' answered with ' + items.filter(i => i.type === 'function_call').map(i => i.name).join(', '));
+        log('scout   ' + scout + ' reads: ' + items.filter(i => i.type === 'function_call' || i.type === 'custom_tool_call').map(i => i.name).join(', '));
         res.writeHead(200, {'content-type':'text/event-stream', 'cache-control':'no-store'});
         return res.end(withoutEncryptedReasoning(text));
       }
@@ -238,7 +248,7 @@ export async function handleFusion(body, res, {bridges = localBridges(), fetchIm
       const summary = await summarise(scoutBridge, {...base, model:scout, input:withoutReasoning(base.input)}, abort.signal, fetchImpl).catch(() => undefined);
       input = condenseInput(input, summary);
     }
-    log('fusion: builder ' + builder + ' takes the step');
+    log('builder ' + builder + ' takes the step' + (options.context === 'condensed' ? ' (condensed)' : ''));
     const built = await post(builderBridge, {...base, model:builder, input}, abort.signal, fetchImpl);
     res.writeHead(built.status, {'content-type':built.headers.get('content-type') ?? 'text/event-stream', 'cache-control':'no-store'});
     for await (const chunk of built.body) res.write(chunk);
@@ -253,10 +263,11 @@ export async function handleFusion(body, res, {bridges = localBridges(), fetchIm
 // parent's provider, so a Claude scout under ChatGPT Fusion reaches the
 // ChatGPT bridge (and the other way round). Such a request goes on to the
 // bridge that serves the model. Returns false when the model is this bridge's own.
-export async function forwardForeign(body, res, own, {bridges = localBridges(), fetchImpl = fetch} = {}) {
+export async function forwardForeign(body, res, own, {bridges = localBridges(), fetchImpl = fetch, log = fusionLog} = {}) {
   const model = body?.model;
   if (typeof model !== 'string' || model.startsWith(own) || !Object.values(prefixes).some(prefix => model.startsWith(prefix))) return false;
   const bridge = bridgeFor(bridges, model);
+  log('forward ' + model + ' from the ' + own + ' bridge (subagent)');
   if (!bridge) { sendJson(res, 502, {error:{message:'The bridge for ' + model + ' is not installed or not running.'}}); return true; }
   const abort = new AbortController();
   res.on('close', () => { if (!res.writableEnded) abort.abort(); });
