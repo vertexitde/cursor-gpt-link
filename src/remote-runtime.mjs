@@ -159,15 +159,18 @@ export function installRemote({host, link, marker, patchRuntime, prefix, dir, ch
   return {changed:true, host};
 }
 
-export function restoreRemote({host, link, dir, log = console.log}) {
+// The links share one manifest and one untouched copy per file, so a single
+// link cannot be taken out while others remain. allLinks puts the untouched
+// files back for every link at once; reinstall the ones still wanted after.
+export function restoreRemote({host, link, dir, allLinks = false, log = console.log}) {
   const ssh = connect(host);
   const {dir:serverDir} = serverDirectory(ssh, localCommit(), dir);
   if (!serverDir) { log(`No server directory for this build on ${host}.`); return {changed:false, host}; }
   const manifestPath = ssh.join(serverDir, manifestName);
   if (!ssh.exists(manifestPath)) { log(`Nothing installed on ${host}.`); return {changed:false, host}; }
   const manifest = JSON.parse(ssh.read(manifestPath));
-  if (!manifest.links.includes(link)) { log(`${link} is not installed on ${host}.`); return {changed:false, host}; }
-  if (manifest.links.length > 1) throw new Error('Remove the other links first: ' + manifest.links.filter(l => l !== link).join(', '));
+  if (!allLinks && !manifest.links.includes(link)) { log(`${link} is not installed on ${host}.`); return {changed:false, host}; }
+  if (!allLinks && manifest.links.length > 1) throw new Error('Other links share these files: ' + manifest.links.filter(l => l !== link).join(', ') + '. Run --restore --all-links to restore the original files for all of them, then reinstall the ones you still want.');
   for (const entry of manifest.files) {
     if (sha(ssh.read(entry.path)) !== entry.patchedHash) throw new Error('File changed since the patch, restore stopped: ' + entry.path);
     ssh.write(entry.path, ssh.read(entry.backup));
@@ -175,6 +178,7 @@ export function restoreRemote({host, link, dir, log = console.log}) {
     log('restored ' + entry.path);
   }
   ssh.remove(manifestPath);
+  if (allLinks && manifest.links.length > 1) log('Removed from ' + host + ': ' + manifest.links.join(', ') + '. Reinstall the ones you still want, in any order.');
   log(`Runtime patch removed from ${host}. Reconnect the remote window.`);
   return {changed:true, host};
 }

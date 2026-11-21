@@ -1,6 +1,6 @@
 // Patch this link's runtime repairs into the copy of Cursor on an SSH host.
 //
-//   node scripts/install-remote.mjs <host> [--check] [--restore] [--dir <server dir>]
+//   node scripts/install-remote.mjs <host> [--check] [--restore [--all-links]] [--dir <server dir>]
 //   node scripts/install-remote.mjs --all  [--check]
 //
 // The host is an entry from ~/.ssh/config or any ssh target. Nothing is written
@@ -29,9 +29,9 @@ if (args.includes('--all')) {
   for (const entry of skipped) console.log('skipped ' + entry);
   console.log(`\npatched ${done.filter(r => r.changed).length}, unchanged ${done.filter(r => !r.changed).length}, skipped ${skipped.length}`);
 } else if (!named) {
-  throw new Error('Usage: node scripts/install-remote.mjs <ssh host> [--check] [--restore] | --all');
+  throw new Error('Usage: node scripts/install-remote.mjs <ssh host> [--check] [--restore [--all-links]] | --all');
 } else if (args.includes('--restore')) {
-  restoreRemote({host:named, link, dir});
+  restoreRemote({host:named, link, dir, allLinks:args.includes('--all-links')});
 } else {
   installRemote({host:named, link, marker, prefix, patchRuntime, dir, check});
 }

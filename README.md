@@ -95,7 +95,7 @@ The workbench patch is on the client, but four repairs live in the two extension
 npm run install:remote -- your-server
 ```
 
-It reads the two bundles over ssh, patches and syntax-checks them on the client, writes them back with a rename and keeps the untouched copy beside each file. `--check` reports what would change without writing, and `--restore` puts the originals back. The three links share one manifest on the host, each adding its own provider, so install them in the same order as locally.
+It reads the two bundles over ssh, patches and syntax-checks them on the client, writes them back with a rename and keeps the untouched copy beside each file. `--check` reports what would change without writing, and `--restore` puts the originals back. The links share one manifest on the host, each adding its own provider, and they can be installed there in any order. Because they share the untouched copies, `--restore` takes out a link only while it is the last one; `--restore --all-links` restores the original files for all of them, after which you reinstall the ones you still want. Every local install also updates hosts that already carry the runtime patch.
 
 **After the first time this is automatic.** A local install walks the hosts in the ssh block, and every host that already carries the manifest is brought to the new build. A host that was never patched is passed over: installing on a machine is a decision of its own, not a side effect of patching this client. `--no-remote` skips the step.
 

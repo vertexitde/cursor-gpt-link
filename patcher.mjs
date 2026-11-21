@@ -9,6 +9,9 @@ import {buildPatches} from './src/patches.mjs';
 import {supportedBuild} from './src/supported-builds.mjs';
 import {installFiles, restoreFiles, hash} from './src/installation.mjs';
 import {stateDir, configPath} from './src/config.mjs';
+import {readBlock, sshConfigPath} from './src/ssh-forwarding.mjs';
+import {syncKnownHosts} from './src/remote-runtime.mjs';
+import {link as remoteLink, marker as remoteMarker, prefix as remotePrefix, patchRuntime as remotePatchRuntime} from './src/runtime-link.mjs';
 
 const sourceDir = path.dirname(fileURLToPath(import.meta.url));
 let build;
@@ -18,10 +21,20 @@ const command = args.shift() || 'help';
 const options = {};
 while (args.length) {
   const flag = args.shift();
+  if (flag === '--no-remote') { options['no-remote'] = true; continue; }
   if (!['--cursor-root', '--codex-path', '--codex-home', '--port'].includes(flag) || !args.length || args[0].startsWith('--')) {
     throw new Error('Unknown or incomplete option: ' + flag);
   }
   options[flag.slice(2)] = args.shift();
+}
+
+// bridge.mjs and every module it reaches through relative imports.
+export function bridgeModules(dir, entry = 'bridge.mjs', seen = new Set()) {
+  if (seen.has(entry)) return [...seen];
+  seen.add(entry);
+  const source = fs.readFileSync(path.join(dir, entry), 'utf8');
+  for (const [, name] of source.matchAll(/^import\b[^'"]*['"]\.\/([\w.-]+\.mjs)['"]/gm)) bridgeModules(dir, name, seen);
+  return [...seen];
 }
 
 function cursorRoot() {
@@ -95,6 +108,8 @@ async function main() {
   --codex-path PATH    Codex executable used for sign-in and token renewal
   --codex-home PATH    Existing Codex home containing auth.json and models_cache.json
   --port NUMBER        Loopback port (default 43187)
+  --no-remote          Leave SSH hosts alone (by default, hosts that already
+                       carry the runtime patch get it for this build too)
 
 State and backups: ${stateDir}
 Set CURSOR_GPT_LINK_HOME before running to override that directory.
@@ -148,9 +163,22 @@ Close Cursor before install or restore. See README.md for requirements.`);
   }
   const runtime = path.join(stateDir, 'runtime');
   fs.mkdirSync(runtime, {recursive:true});
-  for (const name of ['bridge.mjs', 'config.mjs', 'openai-icon.mjs', 'model-tooltip.mjs', 'context-options.mjs']) fs.copyFileSync(path.join(sourceDir, 'src', name), path.join(runtime, name));
+  // Cursor's autostart runs this copy, so it needs every module the bridge
+  // imports. A fixed list missed fusion.mjs and the bridge failed to start.
+  for (const name of bridgeModules(path.join(sourceDir, 'src'))) fs.copyFileSync(path.join(sourceDir, 'src', name), path.join(runtime, name));
   installFiles(pending, {backupDir, manifestPath, version:build.version, commit:build.commit});
+  // Like the other links: SSH hosts that already carry the runtime patch get
+  // it for this build too. Without this the others reached a host first and
+  // ChatGPT was missing there.
+  if (!options['no-remote']) {
+    try {
+      const hosts = readBlock(fs.readFileSync(sshConfigPath(), 'utf8')).hosts;
+      if (hosts.length) syncKnownHosts({hosts, link:remoteLink, marker:remoteMarker, prefix:remotePrefix, patchRuntime:remotePatchRuntime});
+    } catch (error) { console.log('remote runtime: skipped, ' + error.message); }
+  }
   console.log('Installed. Start Cursor and select a model with the OpenAI symbol.');
 }
 
-main().catch(error => { console.error(error.message); process.exitCode = 1; });
+// Only when run, not when a test imports bridgeModules.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
+  main().catch(error => { console.error(error.message); process.exitCode = 1; });
