@@ -8,8 +8,8 @@ This release targets the reviewed Windows builds listed below. It is not a gener
 
 | Item | Current status |
 | --- | --- |
-| Cursor | 3.31.12, 3.25.9, 3.24.12, 3.22.12, 3.22.9, 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7, Windows x64 |
-| Latest Cursor commit | `61ea52f088708259885abd9a37eafec994cd5db0` (3.31.12) |
+| Cursor | 3.31.17, 3.31.12, 3.25.9, 3.24.12, 3.22.12, 3.22.9, 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7, Windows x64 |
+| Latest Cursor commit | `0c888adc18cbde5c1f61c0debd304de2cdaf23a0` (3.31.17) |
 | Cursor 3.25.9 commit | `5d4df965746c5d09740842fc0f1331ba1c157830` |
 | Cursor 3.24.12 commit | `37b865941ccb31e2fc90c685157534efca87f960` |
 | Cursor 3.22.12 commit | `3a92974361033b2051526321308c2740fe5912c0` |
@@ -36,6 +36,8 @@ This release targets the reviewed Windows builds listed below. It is not a gener
 | Fast mode | Selector and request forwarding verified; actual priority processing not confirmed |
 
 Remote SSH sessions changed with 3.22.9. Until then a remote session kept the agent in Cursor's dedicated UI runtime so that the bridge, which listens on the client's loopback, stayed reachable. That runtime resolves paths with the client's own path module: on a Windows client against a Linux host, the workspace path `/srv/app` became `C:\\srv\\app`, and the runtime then looked there for `.cursor/rules`, ran `git rev-parse` in it, walked its ignore files up to the drive root and built the sandbox policy from it. From 3.22.9 the agent runs on the SSH host, where the workspace actually is, and the bridge is published on that host's loopback with an ssh reverse forward that `cursor-gpt-link` writes into `~/.ssh/config`. See [Remote sessions](#remote-sessions).
+
+Cursor 3.31.17 is a patch release of 3.31.12. Every patched bundle changed, but only minified names rotated: the symbols were re-derived without problems, and all automated checks pass on the original 3.31.17 build.
 
 Cursor 3.31.12 (3.26 to 3.30 were skipped) is again supported through its symbol table and file hashes, but it moved a lot. The model picker now builds its sections as a list of `{id, items, title}` entries, once for the menu and once for the grouped view; each link adds its entry before the pinned models, so the order follows the install order, and both renderers learned to show an entry's own trailing label for the usage. The local-mode branch also releases the send slot (`if(x.releaseAfterSend(…),go.localMode)`), the Plan & Usage card is a plain component whose children are expressions, and several minified locals rotated (the local model in the subagent catalog, the Task bubble handle, the cancel locals, the transcript cache). The agent host is now enabled by `_topologyEnabled`, which also covers private inference and Cursor Orbit; the links keep windows on the classic path there too. The runtime bundles are down-levelled again (`Object.assign`), and the user message rebuild moved behind the thread resolution. The extractor reproduced the reviewed 3.25.9 and 3.24.12 symbols before it was used here, and the checks now find methods by parsing and resolve new helpers to inert stubs. All automated checks pass on 3.31.12, and 3.25.9, 3.24.12 and 3.22.12 still verify.
 
