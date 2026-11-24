@@ -224,9 +224,9 @@ export async function handleFusion(body, res, {bridges = localBridges(), fetchIm
   // A runtime without the Fusion patch (an SSH host that was not patched yet)
   // sends no choice; the section's default pair stands in.
   if (!scout || !builder) ({scout = scout, builder = builder} = await defaultPair(prefix, bridges, fetchImpl));
-  if (!scout || !builder) return sendJson(res, 400, {error:{message:'Choose a Scout and a Builder for Fusion in the model picker.'}});
+  if (!scout || !builder) { log('error   no scout or builder chosen'); return sendJson(res, 400, {error:{message:'Choose a Scout and a Builder for Fusion in the model picker.'}}); }
   const scoutBridge = bridgeFor(bridges, scout), builderBridge = bridgeFor(bridges, builder);
-  if (!scoutBridge || !builderBridge) return sendJson(res, 502, {error:{message:'Fusion needs the bridge for ' + (!scoutBridge ? scout : builder) + ', which is not installed or not running.'}});
+  if (!scoutBridge || !builderBridge) { log('error   no bridge for ' + (!scoutBridge ? scout : builder)); return sendJson(res, 502, {error:{message:'Fusion needs the bridge for ' + (!scoutBridge ? scout : builder) + ', which is not installed or not running.'}}); }
   const abort = new AbortController();
   res.on('close', () => { if (!res.writableEnded) abort.abort(); });
   const base = {...body};
@@ -234,6 +234,7 @@ export async function handleFusion(body, res, {bridges = localBridges(), fetchIm
   base.instructions = fusionNote + (base.instructions ? '\n\n' + base.instructions : '');
   try {
     const scouted = await post(scoutBridge, {...base, model:scout, input:withoutReasoning(base.input)}, abort.signal, fetchImpl);
+    if (!scouted.ok) log('error   scout ' + scout + ' answered ' + scouted.status + ': ' + (await scouted.clone?.().text().catch(() => '') ?? '').slice(0, 300));
     if (scouted.ok) {
       const text = await scouted.text();
       const {failed, items} = outputItems(text);
@@ -250,11 +251,13 @@ export async function handleFusion(body, res, {bridges = localBridges(), fetchIm
     }
     log('builder ' + builder + ' takes the step' + (options.context === 'condensed' ? ' (condensed)' : ''));
     const built = await post(builderBridge, {...base, model:builder, input}, abort.signal, fetchImpl);
+    if (!built.ok) log('error   builder ' + builder + ' answered ' + built.status + ': ' + (await built.clone?.().text().catch(() => '') ?? '').slice(0, 300));
     res.writeHead(built.status, {'content-type':built.headers.get('content-type') ?? 'text/event-stream', 'cache-control':'no-store'});
     for await (const chunk of built.body) res.write(chunk);
     res.end();
   } catch (error) {
     if (abort.signal.aborted) return res.destroy();
+    log('error   ' + (error?.message ?? error));
     sendJson(res, 502, {error:{message:'Fusion: ' + (error?.message ?? error)}});
   }
 }

@@ -121,10 +121,10 @@ test('Condensed hands the builder the scout summary instead of the raw reads', a
 
 test('missing choices and bridges are reported', async () => {
   const res = fakeRes();
-  await handleFusion({model:'chatgpt-codex/fusion', input:[]}, res, {bridges, fetchImpl:async () => { throw new Error('offline'); }});
+  await handleFusion({model:'chatgpt-codex/fusion', input:[]}, res, {bridges, fetchImpl:async () => { throw new Error('offline'); }, log:() => {}});
   assert.equal(res.status, 400);
   const other = fakeRes();
-  await handleFusion(fusionBody(), other, {bridges:{[prefixes.chatgpt]:bridges[prefixes.chatgpt]}});
+  await handleFusion(fusionBody(), other, {bridges:{[prefixes.chatgpt]:bridges[prefixes.chatgpt]}, log:() => {}});
   assert.equal(other.status, 502);
   assert.match(other.body, /claude-subscription\/haiku/);
 });

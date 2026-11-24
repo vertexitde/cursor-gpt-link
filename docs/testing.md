@@ -7,7 +7,8 @@ Updated on September 29, 2026.
 | Component | Version |
 | --- | --- |
 | Operating system | Windows, x64 |
-| Cursor | 3.32.1, 3.31.17, 3.31.12, 3.25.9, 3.24.12, 3.22.12, 3.22.9, 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7 |
+| Cursor | 3.32.4, 3.32.1, 3.31.17, 3.31.12, 3.25.9, 3.24.12, 3.22.12, 3.22.9, 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7 |
+| Cursor 3.32.4 commit | `0925c4b8226c56947c43f0b555fb98e187a7e020` |
 | Cursor 3.32.1 commit | `ac14a3354228b109d5c406520b0f946a9954afd0` |
 | Cursor 3.31.17 commit | `0c888adc18cbde5c1f61c0debd304de2cdaf23a0` |
 | Cursor 3.31.12 commit | `61ea52f088708259885abd9a37eafec994cd5db0` |
@@ -72,6 +73,10 @@ Verified without touching an installation, against copies of the original 3.22.9
 - a dry run on a copy of a real configuration, with `ssh -G` used to confirm that OpenSSH parses the result, attaches the three forwards to a configured host and leaves an unrelated host without any.
 
 Not yet confirmed: a live remote turn. The host's own runtime under `~/.cursor-server` is unpatched, so reasoning effort forwarding and the subagent model repairs are missing there.
+
+## Cursor 3.32.4 update
+
+Cursor 3.32.4 is a patch release of 3.32.4. Every patched bundle changed, but only minified names rotated: the symbols were re-derived without problems (the extractor reproduces the reviewed 3.32.4 symbols), and all automated checks pass on the original 3.32.4 build and on top of the companions.
 
 ## Cursor 3.32.1 update
 
