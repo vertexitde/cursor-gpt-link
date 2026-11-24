@@ -8,8 +8,8 @@ This release targets the reviewed Windows builds listed below. It is not a gener
 
 | Item | Current status |
 | --- | --- |
-| Cursor | 3.31.17, 3.31.12, 3.25.9, 3.24.12, 3.22.12, 3.22.9, 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7, Windows x64 |
-| Latest Cursor commit | `0c888adc18cbde5c1f61c0debd304de2cdaf23a0` (3.31.17) |
+| Cursor | 3.32.1, 3.31.17, 3.31.12, 3.25.9, 3.24.12, 3.22.12, 3.22.9, 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7, Windows x64 |
+| Latest Cursor commit | `ac14a3354228b109d5c406520b0f946a9954afd0` (3.32.1) |
 | Cursor 3.25.9 commit | `5d4df965746c5d09740842fc0f1331ba1c157830` |
 | Cursor 3.24.12 commit | `37b865941ccb31e2fc90c685157534efca87f960` |
 | Cursor 3.22.12 commit | `3a92974361033b2051526321308c2740fe5912c0` |
@@ -36,6 +36,8 @@ This release targets the reviewed Windows builds listed below. It is not a gener
 | Fast mode | Selector and request forwarding verified; actual priority processing not confirmed |
 
 Remote SSH sessions changed with 3.22.9. Until then a remote session kept the agent in Cursor's dedicated UI runtime so that the bridge, which listens on the client's loopback, stayed reachable. That runtime resolves paths with the client's own path module: on a Windows client against a Linux host, the workspace path `/srv/app` became `C:\\srv\\app`, and the runtime then looked there for `.cursor/rules`, ran `git rev-parse` in it, walked its ignore files up to the drive root and built the sandbox policy from it. From 3.22.9 the agent runs on the SSH host, where the workspace actually is, and the bridge is published on that host's loopback with an ssh reverse forward that `cursor-gpt-link` writes into `~/.ssh/config`. See [Remote sessions](#remote-sessions).
+
+Cursor 3.32.1 split the workbench into ES modules. The model picker (its sections and grouping) and the Max-mode solver moved into `workbench.anysphere-ui.js`, a module both surfaces import, so that file is now patched as well: once, with the picker sections and the Max-mode branch, and with the same prelude as the surfaces. The settings pages were rebuilt from parts (`SettingsSection` and `SettingsRow`); the links draw their cards (subscription usage, the Inception key) through a small adapter onto those parts, so the same card code serves older builds. The run gate swapped its minified option names, which the extractor now reads instead of assuming. All automated checks pass on the original 3.32.1 build and on top of the companions, and 3.31.17 still verifies.
 
 Cursor 3.31.17 is a patch release of 3.31.12. Every patched bundle changed, but only minified names rotated: the symbols were re-derived without problems, and all automated checks pass on the original 3.31.17 build.
 

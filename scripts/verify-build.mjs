@@ -36,10 +36,18 @@ try {
     fs.writeFileSync(candidate, file.content);
     execFileSync(process.execPath, ['--check', candidate], {stdio:'pipe', windowsHide:true});
     console.log('Syntax and unique anchors: ' + path.relative(root, file.path));
+    // From 3.32 the picker and the Max-mode solver are in the shared UI module.
+    const ui = pending.find(f => f.path.endsWith('workbench.anysphere-ui.js'));
+    if (file === ui) {
+      verifyMaxMode(file.content);
+      assert.ok(file.content.includes('"chatgpt-subscription-models"') && file.content.includes('__withSubscriptionPickerSections('), 'Picker sections in the UI module');
+      console.log('UI module: picker sections and Max mode passed');
+      continue;
+    }
     if (file.path.includes('workbench.')) {
       if(atLeast(build.version,'3.20.23'))verifySubscriptionUi(file.content);
       if(atLeast(build.version,'3.20.21'))await verifyConversationActionsWorkbench(file.content,['chatgpt-codex/']);
-      if(atLeast(build.version,'3.20.21')){verifyMaxMode(file.content);await verifySubagentLifecycle(file.content,['chatgpt-codex/']);}
+      if(atLeast(build.version,'3.20.21')){if(!ui)verifyMaxMode(file.content);await verifySubagentLifecycle(file.content,['chatgpt-codex/']);}
       await verifyWorkbenchRouting(file.content, build.version);
       if(atLeast(build.version,'3.24.12'))verifyAgentHost(file.content);
       if(atLeast(build.version,'3.20.17'))await verifySubagentRegistration(file.content);

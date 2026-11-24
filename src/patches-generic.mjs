@@ -7,12 +7,13 @@
 // they were reviewed.
 import {patchConversationActionsWorkbench, patchConversationActionsRuntime} from './conversation-actions.mjs';
 import {patchSubagentLifecycle} from './subagent-lifecycle.mjs';
-import {patchMaxMode} from './max-mode.mjs';
+import {patchMaxMode, hasMaxModeSolver} from './max-mode.mjs';
 import {patchSubagentSettingsWorkbench, patchSubagentSettingsRuntime} from './subagent-settings.mjs';
 import {patchSubagentModel} from './subagent-model.mjs';
 import {patchSubagentBubbles} from './subagent-bubbles.mjs';
 import {buildAutostart} from './autostart.mjs';
 import {usageSectionSrc} from './usage-section.mjs';
+import {settingsParts} from './settings-compat.mjs';
 import {wrapRuntime} from './patches-runtime.mjs';
 import {pickerSectionHelpersSrc, patchPickerSections} from './picker-sections.mjs';
 import {usageLabelHelpersSrc} from './usage-label.mjs';
@@ -87,8 +88,9 @@ function loginAction(s, desktop) {
 }
 
 function addUsage(source, s) {
-  const symbols = {jsx:s.usageJsx, useState:s.usageUseState, useEffect:s.usageUseEffect, card:s.card, zs:s.zs, bar:s.bar, barStyle:s.barStyle};
-  if (!source.includes('function __chatgptUsageSection')) source = replaceOnce(source, s.usageFn, usageSectionSrc(symbols) + s.usageFn);
+  const parts = settingsParts('chatgpt', s.usageJsx, s);
+  const symbols = {jsx:s.usageJsx, useState:s.usageUseState, useEffect:s.usageUseEffect, card:parts.card, zs:parts.zs, bar:s.bar, barStyle:s.barStyle};
+  if (!source.includes('function __chatgptUsageSection')) source = replaceOnce(source, s.usageFn, parts.adapter + usageSectionSrc(symbols) + s.usageFn);
   if (source.includes(s.usageJsx + '(__chatgptUsageSection,{})')) return source;
   const claudeOnly = s.usageChildren.slice(0, -1) + ',' + s.usageJsx + '(__claudeUsageSection,{})]';
   const children = source.includes(claudeOnly) ? claudeOnly : s.usageChildren;
@@ -102,18 +104,22 @@ export function patchWorkbench(source, surface, s, prelude) {
   source = wrapGetter(source);
   source = replaceOnce(source, 'async refreshDefaultModels(){', 'async refreshDefaultModels(){await __refreshChatgptBridgeModels();');
   source = wrapMap(source, s);
-  source = patchPickerSections(source, replaceOnce, s);
+  // From 3.32 the picker is in workbench.anysphere-ui.js (see buildPatches).
+  if (s.groupReturn) source = patchPickerSections(source, replaceOnce, s);
   source = replaceOnce(source, s.providerConfig,
     s.providerConfig + `if(__isChatgptBridgeModel(${providerModel(s.providerConfig)}))return{baseUrl:__chatgptBridgeBase+"/v1",apiKey:__chatgptBridgeKey,customHeaders:{}};`);
   source = gateRun(source, s);
   source += loginAction(s, desktop);
   source = addUsage(source, s);
-  source = patchMaxMode(patchSubagentSettingsWorkbench(source));
+  source = patchSubagentSettingsWorkbench(source);
+  if (hasMaxModeSolver(source)) source = patchMaxMode(source);
   // Remote sessions run on the SSH host from 3.22.9 on, so nothing is rerouted.
   source = patchSubagentBubbles(source, surface, s);
   source = patchSubagentLifecycle(source, surface, prefix, s);
   return patchAgentHost(patchConversationActionsWorkbench(source, surface, prefix));
 }
+
+export const uiRelative = 'out/vs/workbench/workbench.anysphere-ui.js';
 
 export function buildPatches({root, cfg, models, nodePath, bridgePath, stateDir, symbols}) {
   if (!symbols?.desktop || !symbols?.glass) throw new Error('A symbol table for both workbench surfaces is required.');
@@ -137,5 +143,12 @@ export function buildPatches({root, cfg, models, nodePath, bridgePath, stateDir,
   const product = JSON.parse(fs.readFileSync(productPath, 'utf8'));
   product.checksums['vs/workbench/workbench.desktop.main.js'] = crypto.createHash('sha256').update(desktopContent).digest('base64').replace(/=+$/, '');
   pending.push({path:productPath, content:JSON.stringify(product, null, 2)});
+  // From 3.32 the model picker lives in a module both surfaces import. It gets
+  // the same prelude (the bridge constants feed the usage label) and the
+  // picker sections; it is not in product.json's checksums.
+  if (symbols.ui) {
+    const uiPath = path.join(root, uiRelative);
+    pending.push({path:uiPath, content:patchMaxMode(patchPickerSections(prelude + fs.readFileSync(uiPath, 'utf8'), replaceOnce, symbols.ui))});
+  }
   return pending;
 }

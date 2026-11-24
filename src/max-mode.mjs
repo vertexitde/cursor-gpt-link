@@ -9,6 +9,8 @@ export function maxModeVariant(model, parameters, maxMode) {
   const score=v=>requested.filter(p=>v.parameterValues.some(q=>q.id===p.id&&q.value===p.value)).length;
   return candidates.reduce((best,v)=>score(v)>score(best)?v:best);
 }
+// From 3.32 the solver lives in workbench.anysphere-ui.js, not in the surfaces.
+export const hasMaxModeSolver = source => /function [\w$]+\(([\w$]+),[\w$]+,([\w$]+)\)\{if\(\1\.variants\.length===0\|\|!\2&&\1\.supportsNonMaxMode===!1\)return;/.test(source);
 export function patchMaxMode(source) {
   const matches=[...source.matchAll(/function ([\w$]+)\(([\w$]+),([\w$]+),([\w$]+)\)\{if\(\2.variants.length===0\|\|!\4&&\2.supportsNonMaxMode===!1\)return;/g)];
   if(matches.length!==1)throw new Error('Max-mode variant solver anchor is not unique');

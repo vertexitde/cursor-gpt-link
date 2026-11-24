@@ -95,10 +95,10 @@ function deriveSharedSurface(source) {
   // Local agent run gate
   // Up to 3.22 the local mode is also passed into the run options; from 3.24
   // only the branch checks it. The anchor keeps whichever form the build has.
-  const run = unique('run', /async run\(([\w$,]+)\)\{const ([\w$]+)=([\w$]+)\(u,\{isRunningInTest:u\.isRunningInTest\?\?this\.environmentService\.enableSmokeTestDriver===!0(?:,localMode:([\w$]+)\.localMode)?\}\);if\((?:[\w$]+\.releaseAfterSend\([\w$]+\.conversationId\),)?([\w$]+)\.localMode\)\{/g);
+  const run = unique('run', /async run\(([\w$,]+)\)\{const ([\w$]+)=([\w$]+)\(([\w$]+),\{isRunningInTest:\4\.isRunningInTest\?\?this\.environmentService\.enableSmokeTestDriver===!0(?:,localMode:([\w$]+)\.localMode)?\}\);if\((?:[\w$]+\.releaseAfterSend\([\w$]+\.conversationId\),)?([\w$]+)\.localMode\)\{/g);
   if (run) {
-    if (run[4] !== undefined && run[4] !== run[5]) problems.push('run: the options and the branch read different local-mode flags');
-    Object.assign(out, {runAnchor: run[0], runLocalVar: run[2], runFn: run[3], localMode: run[5]});
+    if (run[5] !== undefined && run[5] !== run[6]) problems.push('run: the options and the branch read different local-mode flags');
+    Object.assign(out, {runAnchor: run[0], runLocalVar: run[2], runFn: run[3], localMode: run[6]});
   }
 
   // Dedicated runtime host selector and the requested model in scope there
@@ -127,10 +127,20 @@ function deriveSharedSurface(source) {
       out.genericKeyCard = generic[2];
       const cardFnAt = source.indexOf(`function ${generic[2]}(`);
       const cardFn = cardFnAt >= 0 ? source.slice(cardFnAt, cardFnAt + 6000) : '';
-      const entry = within('api key entry', cardFn, /([\w$]+)\.Entry,\{label:"API Key",layout:"row",children:[\w$]+\(([\w$]+),\{ariaLabel:/);
-      if (entry) Object.assign(out, {zs: entry[1], keyInput: entry[2]});
-      const card = within('key card shell', cardFn, /[\w$]+\(([\w$]+),\{description:[\w$]+,title:[\w$]+,children:\[[\w$]+,[\w$]+\]\}\)/);
-      if (card) out.card = card[1];
+      // From 3.32 a settings card is built from parts: the card namespace
+      // (Root, Header, Title, Description, Group, Preview) and the row
+      // namespace (Root, Content, Title, Description, Control). The patches
+      // then draw their cards through a small adapter with the older shape.
+      const group = cardFn.match(/[\w$]+\(([\w$]+)\.Group,\{accessibleLabel:[\w$]+,variant:"tinted"/);
+      if (group) {
+        const control = within('api key control', cardFn, /\(([\w$]+)\.Control,\{children:[\w$]+\(([\w$]+),\{ariaLabel:/);
+        if (control) Object.assign(out, {cardNs: group[1], rowNs: control[1], keyInput: control[2]});
+      } else {
+        const entry = within('api key entry', cardFn, /([\w$]+)\.Entry,\{label:"API Key",layout:"row",children:[\w$]+\(([\w$]+),\{ariaLabel:/);
+        if (entry) Object.assign(out, {zs: entry[1], keyInput: entry[2]});
+        const card = within('key card shell', cardFn, /[\w$]+\(([\w$]+),\{description:[\w$]+,title:[\w$]+,children:\[[\w$]+,[\w$]+\]\}\)/);
+        if (card) out.card = card[1];
+      }
     }
     if (out.keyReader) {
       const readerAt = source.indexOf(`function ${out.keyReader}(`);
@@ -241,6 +251,19 @@ if (process.argv[1] && process.argv[1].endsWith('derive-symbols.mjs')) {
     const {symbols, problems: found} = deriveSurface(fs.readFileSync(file, 'utf8'));
     result[surface] = symbols;
     problems.push(...found.map(p => `${surface}.${p}`));
+  }
+
+  // From 3.32 the model picker lives in workbench.anysphere-ui.js, a module
+  // both surfaces import. Its roles are taken from there, and the surfaces no
+  // longer need them.
+  const appRoot = args[0] && !args[0].startsWith('--') ? args[0] : undefined;
+  const uiFile = appRoot && path.join(appRoot, 'out/vs/workbench/workbench.anysphere-ui.js');
+  if (uiFile && fs.existsSync(uiFile)) {
+    const {symbols: ui, problems: uiProblems} = deriveSurface(fs.readFileSync(uiFile, 'utf8'));
+    result.ui = Object.fromEntries(['groupReturn', 'sectionLists', 'sectionRenderers', 'jsx'].filter(k => k in ui).map(k => [k, ui[k]]));
+    problems.push(...uiProblems.filter(p => /^(groupReturn|sectionLists|sectionRenderers|promotedAnchor)\b/.test(p)).map(p => 'ui.' + p));
+    if (result.ui.groupReturn && result.ui.sectionLists === 2)
+      for (let i = problems.length - 1; i >= 0; i--) if (/^(desktop|glass)\.(groupReturn|promotedAnchor)\b/.test(problems[i])) problems.splice(i, 1);
   }
   if (out) fs.writeFileSync(out, JSON.stringify(result, null, 2) + '\n');
   else console.log(JSON.stringify(result, null, 2));
