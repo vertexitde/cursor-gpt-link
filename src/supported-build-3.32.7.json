@@ -1,0 +1,15 @@
+{
+  "version": "3.32.7",
+  "commit": "c83fdd301426f2280908a553e0782475a1db4af0",
+  "platform": "win32",
+  "arch": "x64",
+  "files": {
+    "out/vs/workbench/workbench.desktop.main.js": "72e0e789b17683038b383f87a022b4ed8500f19bb80789c3bb1a47cfae61dedc",
+    "out/vs/workbench/workbench.glass.main.js": "0639a0f777a1a1c237eefc62d1b8e5299a4ffb3f2c20562233524262f34fbb71",
+    "extensions/cursor-agent-exec/dist/main.js": "d5a49bdece5d8e4bc810cf5dfe5c4ac7be2cf7505992b4ff6e3c8c790c423458",
+    "extensions/cursor-local-agent-runtime/dist/main.js": "a0765fa0887cd5b0e4d8bebbd0c8f461764b5fa8ba2d4b65440d080a015da2bb",
+    "out/main.js": "7614af90851b9c475daac42c7d8cbbfbdb384ed983a9ff5d33e2f18df3d2cc6d",
+    "product.json": "74c53a29b6db567b45d7c98292dddbb955ba6e08cf5087519f7060755ee81bfc",
+    "out/vs/workbench/workbench.anysphere-ui.js": "4cb51c0f990e89ddeede26f044b73dd11b0576dfb5d5940f0ef99643afe7238a"
+  }
+}

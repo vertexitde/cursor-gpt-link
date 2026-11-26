@@ -8,8 +8,8 @@ This release targets the reviewed Windows builds listed below. It is not a gener
 
 | Item | Current status |
 | --- | --- |
-| Cursor | 3.32.5, 3.32.4, 3.32.1, 3.31.17, 3.31.12, 3.25.9, 3.24.12, 3.22.12, 3.22.9, 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7, Windows x64 |
-| Latest Cursor commit | `94cda5961505b3ddb751f861e6eb5f2e65379db0` (3.32.5) |
+| Cursor | 3.32.7, 3.32.5, 3.32.4, 3.32.1, 3.31.17, 3.31.12, 3.25.9, 3.24.12, 3.22.12, 3.22.9, 3.22.5, 3.21.18, 3.21.16, 3.21.13, 3.21.12, 3.21.9, 3.21.1, 3.20.23, 3.20.21, 3.20.17, 3.20.11 and 3.20.7, Windows x64 |
+| Latest Cursor commit | `c83fdd301426f2280908a553e0782475a1db4af0` (3.32.7) |
 | Cursor 3.25.9 commit | `5d4df965746c5d09740842fc0f1331ba1c157830` |
 | Cursor 3.24.12 commit | `37b865941ccb31e2fc90c685157534efca87f960` |
 | Cursor 3.22.12 commit | `3a92974361033b2051526321308c2740fe5912c0` |
@@ -36,6 +36,8 @@ This release targets the reviewed Windows builds listed below. It is not a gener
 | Fast mode | Selector and request forwarding verified; actual priority processing not confirmed |
 
 Remote SSH sessions changed with 3.22.9. Until then a remote session kept the agent in Cursor's dedicated UI runtime so that the bridge, which listens on the client's loopback, stayed reachable. That runtime resolves paths with the client's own path module: on a Windows client against a Linux host, the workspace path `/srv/app` became `C:\\srv\\app`, and the runtime then looked there for `.cursor/rules`, ran `git rev-parse` in it, walked its ignore files up to the drive root and built the sandbox policy from it. From 3.22.9 the agent runs on the SSH host, where the workspace actually is, and the bridge is published on that host's loopback with an ssh reverse forward that `cursor-gpt-link` writes into `~/.ssh/config`. See [Remote sessions](#remote-sessions).
+
+Cursor 3.32.7 is a patch release of 3.32.5. Every patched bundle changed, but only minified names rotated: the symbols were re-derived without problems (the extractor reproduces the reviewed 3.32.5 symbols), and all automated checks pass on the original 3.32.7 build and on top of the companions.
 
 Cursor 3.32.5 is a patch release of 3.32.4. Every patched bundle changed, but only minified names rotated: the symbols were re-derived without problems (the extractor reproduces the reviewed 3.32.4 symbols), and all automated checks pass on the original 3.32.5 build and on top of the companions.
 
