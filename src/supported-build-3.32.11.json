@@ -1,0 +1,15 @@
+{
+  "version": "3.32.11",
+  "commit": "79af92cc6796bb44603d7c96f7c88e4f3edafcb0",
+  "platform": "win32",
+  "arch": "x64",
+  "files": {
+    "out/vs/workbench/workbench.desktop.main.js": "1bf68287a4da864c1f9d0c1b6a029289b65694ee1482a735c3370b33083e2c81",
+    "out/vs/workbench/workbench.glass.main.js": "6d95b299e81faf8891f871f36676f3b96c21209f382e9d3a94b95e7d0bd0aafa",
+    "extensions/cursor-agent-exec/dist/main.js": "861016f6493fe58e45bd53e01f1a19df7deb61fffdd916072c77b7c9ecf4aee4",
+    "extensions/cursor-local-agent-runtime/dist/main.js": "8c5eec5676f8840f3b95203d58bcd22e1b8a15f489ecdaf7dd6f8df965a8dee7",
+    "out/main.js": "600e062ccf4f063d525c427f61b3b6fb12244c7f420ecc5a0dbfc1c4d0f02e2a",
+    "product.json": "749cf0984a494d1ffd9b3b48741c959cf46af0cb931a1ea6a86122b9f21e7448",
+    "out/vs/workbench/workbench.anysphere-ui.js": "88250391886288376b927c8c7cd4f2ed9609d2e0e974e8ec9562ccc6f569fddc"
+  }
+}
